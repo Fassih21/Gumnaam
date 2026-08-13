@@ -1,6 +1,13 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/post/$id")({
   head: () => ({
@@ -21,8 +28,159 @@ export const Route = createFileRoute("/post/$id")({
   component: PostDetail,
 });
 
+const MAX_COMMENT_LENGTH = 2000;
+
+type PostRow = {
+  id: string;
+  content: string;
+  created_at: string;
+  users: { anon_id: string } | null;
+};
+
+type CommentRow = {
+  id: string;
+  content: string;
+  created_at: string;
+  users: { anon_id: string } | null;
+};
+
+function relativeTime(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+/** Maps raw Supabase/Postgres errors to copy a student will understand. */
+function describeError(error: { message?: string; code?: string } | null): string {
+  const msg = error?.message ?? "";
+  if (/blocked|moderat|not allowed|forbidden/i.test(msg)) {
+    return "That contains language that isn't allowed here.";
+  }
+  if (error?.code === "23514") {
+    return "Couldn't save that — check the content and try again.";
+  }
+  return "Something went wrong. Please try again.";
+}
+
+function usePostQuery(postId: string) {
+  return useQuery({
+    queryKey: ["posts", postId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, content, created_at, users ( anon_id )")
+        .eq("id", postId)
+        .eq("is_deleted", false)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as PostRow | null;
+    },
+  });
+}
+
+function useCommentsQuery(postId: string) {
+  return useQuery({
+    queryKey: ["comments", postId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("comments")
+        .select("id, content, created_at, users ( anon_id )")
+        .eq("post_id", postId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as CommentRow[];
+    },
+  });
+}
+
+function CommentComposer({ postId }: { postId: string }) {
+  const { identity } = useAuth();
+  const [content, setContent] = useState("");
+  const queryClient = useQueryClient();
+
+  const createComment = useMutation({
+    mutationFn: async (text: string) => {
+      if (!identity) throw new Error("Not signed in");
+      const { error } = await supabase.from("comments").insert({
+        post_id: postId,
+        user_id: identity.id,
+        content: text.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setContent("");
+      void queryClient.invalidateQueries({ queryKey: ["comments", postId] });
+    },
+    onError: (error: { message?: string; code?: string }) => {
+      toast.error(describeError(error));
+    },
+  });
+
+  const trimmed = content.trim();
+  const remaining = MAX_COMMENT_LENGTH - content.length;
+  const canSubmit =
+    trimmed.length > 0 && content.length <= MAX_COMMENT_LENGTH && !createComment.isPending;
+
+  return (
+    <div className="surface p-4">
+      <div className="flex items-start gap-3">
+        <AnonAvatar className="size-8" />
+        <div className="flex-1">
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={`Reply as ${identity?.anon_id ?? "Anon#••••"}…`}
+            className="min-h-[56px] resize-none border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+            maxLength={MAX_COMMENT_LENGTH + 20}
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className={`meta ${remaining < 0 ? "text-destructive" : ""}`}>
+              {remaining} characters left
+            </span>
+            <Button
+              size="sm"
+              disabled={!canSubmit}
+              onClick={() => createComment.mutate(trimmed)}
+            >
+              {createComment.isPending ? "Replying…" : "Reply"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PostDetail() {
   const { id } = Route.useParams();
+  const { session } = useAuth();
+  const { data: post, isLoading: postLoading, isError: postError } = usePostQuery(id);
+  const { data: comments, isLoading: commentsLoading } = useCommentsQuery(id);
+  const queryClient = useQueryClient();
+
+  // Live updates: refresh comments whenever one is added, edited, or removed on this post.
+  useEffect(() => {
+    if (!session) return;
+    const channel = supabase
+      .channel(`comments-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["comments", id] }),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [session, id, queryClient]);
 
   return (
     <AppShell>
@@ -30,34 +188,68 @@ function PostDetail() {
         ← back to feed
       </Link>
 
-      <article className="surface mt-4 p-5">
-        <div className="flex items-center gap-3">
-          <AnonAvatar />
-          <div className="flex flex-col">
-            <span className="anon-tag">Anon#••••</span>
-            <span className="meta">post {id}</span>
-          </div>
-        </div>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          Post content will render here. Reactions and trust actions arrive in the next phase.
-        </p>
-      </article>
+      {postLoading ? <p className="meta mt-6 text-center">loading post…</p> : null}
 
-      <h2 className="mt-8 text-sm font-medium tracking-tight">Comments</h2>
-      <div className="mt-3 space-y-3">
-        {[1, 2].map((i) => (
-          <div key={i} className="surface p-4">
-            <div className="flex items-center gap-3">
-              <AnonAvatar className="size-8" />
-              <span className="anon-tag">Anon#••••</span>
-              <span className="meta">placeholder</span>
+      {postError ? (
+        <p className="meta mt-6 text-center text-destructive">Couldn't load this post.</p>
+      ) : null}
+
+      {!postLoading && !postError && !post ? (
+        <div className="surface mt-4 p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            This post doesn't exist or has been removed.
+          </p>
+        </div>
+      ) : null}
+
+      {post ? (
+        <article className="surface mt-4 p-5">
+          <div className="flex items-center gap-3">
+            <AnonAvatar />
+            <div className="flex flex-col">
+              <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
+              <span className="meta">{relativeTime(post.created_at)}</span>
             </div>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Comment threads are not wired up yet.
-            </p>
           </div>
-        ))}
-      </div>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+            {post.content}
+          </p>
+        </article>
+      ) : null}
+
+      {post && session ? (
+        <div className="mt-6">
+          <CommentComposer postId={id} />
+        </div>
+      ) : null}
+
+      {post ? (
+        <>
+          <h2 className="mt-8 text-sm font-medium tracking-tight">
+            Comments {comments?.length ? `(${comments.length})` : ""}
+          </h2>
+          <div className="mt-3 space-y-3">
+            {commentsLoading ? <p className="meta text-center">loading comments…</p> : null}
+
+            {!commentsLoading && comments?.length === 0 ? (
+              <p className="meta text-center">No replies yet. Be the first.</p>
+            ) : null}
+
+            {comments?.map((comment) => (
+              <div key={comment.id} className="surface p-4">
+                <div className="flex items-center gap-3">
+                  <AnonAvatar className="size-8" />
+                  <span className="anon-tag">{comment.users?.anon_id ?? "Anon#••••"}</span>
+                  <span className="meta">{relativeTime(comment.created_at)}</span>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {comment.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
     </AppShell>
   );
 }
