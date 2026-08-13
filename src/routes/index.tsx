@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +29,18 @@ export const Route = createFileRoute("/")({
   component: Feed,
 });
 
-const MAX_POST_LENGTH = 3000;
+const MAX_POST_LENGTH = 2000;
+
+const COMMENT_PREVIEW_COUNT = 2;
 
 type PostRow = {
+  id: string;
+  content: string;
+  created_at: string;
+  users: { anon_id: string } | null;
+};
+
+type CommentRow = {
   id: string;
   content: string;
   created_at: string;
@@ -134,12 +144,137 @@ function Composer() {
   );
 }
 
+function useCommentPreviewQuery(postId: string) {
+  return useQuery({
+    queryKey: ["comments", "preview", postId],
+    queryFn: async () => {
+      const { data, error, count } = await supabase
+        .from("comments")
+        .select("id, content, created_at, users ( anon_id )", { count: "exact" })
+        .eq("post_id", postId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(COMMENT_PREVIEW_COUNT);
+      if (error) throw error;
+      const comments = ((data ?? []) as unknown as CommentRow[]).slice().reverse();
+      return { comments, total: count ?? 0 };
+    },
+  });
+}
+
+function PostCard({ post }: { post: PostRow }) {
+  const { identity } = useAuth();
+  const [replyText, setReplyText] = useState("");
+  const queryClient = useQueryClient();
+  const { data } = useCommentPreviewQuery(post.id);
+
+  const quickReply = useMutation({
+    mutationFn: async (text: string) => {
+      if (!identity) throw new Error("Not signed in");
+      const { error } = await supabase.from("comments").insert({
+        post_id: post.id,
+        user_id: identity.id,
+        content: text.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setReplyText("");
+      void queryClient.invalidateQueries({ queryKey: ["comments", "preview", post.id] });
+    },
+    onError: (error: { message?: string; code?: string }) => {
+      toast.error(describePostError(error));
+    },
+  });
+
+  const comments = data?.comments ?? [];
+  const total = data?.total ?? 0;
+  const hiddenCount = total - comments.length;
+  const trimmedReply = replyText.trim();
+
+  const submitReply = () => {
+    if (!trimmedReply || quickReply.isPending) return;
+    quickReply.mutate(trimmedReply);
+  };
+
+  return (
+    <div className="surface-interactive p-5">
+      <Link to="/post/$id" params={{ id: post.id }} className="block">
+        <div className="flex items-center gap-3">
+          <AnonAvatar />
+          <div className="flex flex-col">
+            <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
+            <span className="meta">{relativeTime(post.created_at)}</span>
+          </div>
+        </div>
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+          {post.content}
+        </p>
+      </Link>
+
+      {total > 0 ? (
+        <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
+          {hiddenCount > 0 ? (
+            <Link
+              to="/post/$id"
+              params={{ id: post.id }}
+              className="meta block transition-colors hover:text-foreground"
+            >
+              View all {total} comment{total === 1 ? "" : "s"}
+            </Link>
+          ) : null}
+          {comments.map((comment) => (
+            <Link
+              key={comment.id}
+              to="/post/$id"
+              params={{ id: post.id }}
+              className="flex gap-2 text-sm"
+            >
+              <span className="anon-tag shrink-0">{comment.users?.anon_id ?? "Anon#••••"}</span>
+              <span className="line-clamp-2 text-foreground/80">{comment.content}</span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {identity ? (
+        <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3">
+          <AnonAvatar className="size-6" />
+          <Input
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitReply();
+              }
+            }}
+            placeholder="Add a comment…"
+            className="h-8 flex-1 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+          />
+          {trimmedReply ? (
+            <button
+              type="button"
+              onClick={submitReply}
+              disabled={quickReply.isPending}
+              className="shrink-0 text-sm font-medium text-primary disabled:opacity-50"
+            >
+              {quickReply.isPending ? "Posting…" : "Post"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Feed() {
   const { session, loading } = useAuth();
   const { data: posts, isLoading, isError } = useFeedQuery();
   const queryClient = useQueryClient();
 
-  // Live updates: refresh the feed whenever a post is added, edited, or removed.
+  // Live updates: refresh the feed whenever a post is added, edited, or removed,
+  // and refresh comment previews whenever any comment changes.
   useEffect(() => {
     if (!session) return;
     const channel = supabase
@@ -148,6 +283,11 @@ function Feed() {
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
         () => void queryClient.invalidateQueries({ queryKey: ["posts", "feed"] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments" },
+        () => void queryClient.invalidateQueries({ queryKey: ["comments", "preview"] }),
       )
       .subscribe();
 
@@ -201,23 +341,7 @@ function Feed() {
         ) : null}
 
         {posts?.map((post) => (
-          <Link
-            key={post.id}
-            to="/post/$id"
-            params={{ id: post.id }}
-            className="surface-interactive block p-5"
-          >
-            <div className="flex items-center gap-3">
-              <AnonAvatar />
-              <div className="flex flex-col">
-                <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
-                <span className="meta">{relativeTime(post.created_at)}</span>
-              </div>
-            </div>
-            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-              {post.content}
-            </p>
-          </Link>
+          <PostCard key={post.id} post={post} />
         ))}
       </div>
     </AppShell>
