@@ -319,12 +319,6 @@ function Feed() {
         </div>
       ) : null}
 
-      {session ? (
-        <div className="mt-6">
-          <Composer />
-        </div>
-      ) : null}
-
       <div className="mt-6 space-y-3">
         {isLoading ? <p className="meta text-center">loading feed…</p> : null}
 
@@ -344,6 +338,12 @@ function Feed() {
           <PostCard key={post.id} post={post} />
         ))}
       </div>
+
+      {session ? (
+        <div className="mt-6">
+          <Composer />
+        </div>
+      ) : null}
     </AppShell>
   );
 }
