@@ -1,12 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
+import { ReactionButtons } from "@/components/ReactionButtons";
+import { TrustButton } from "@/components/TrustButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useReactionsQuery } from "@/hooks/useReactions";
+import { useMyTrustsQuery, useTrustCountsQuery } from "@/hooks/useTrust";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/post/$id")({
@@ -34,6 +39,7 @@ type PostRow = {
   id: string;
   content: string;
   created_at: string;
+  user_id: string;
   users: { anon_id: string } | null;
 };
 
@@ -41,6 +47,7 @@ type CommentRow = {
   id: string;
   content: string;
   created_at: string;
+  user_id: string;
   users: { anon_id: string } | null;
 };
 
@@ -73,7 +80,7 @@ function usePostQuery(postId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, content, created_at, users ( anon_id )")
+        .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("id", postId)
         .eq("is_deleted", false)
         .maybeSingle();
@@ -89,7 +96,7 @@ function useCommentsQuery(postId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("comments")
-        .select("id, content, created_at, users ( anon_id )")
+        .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("post_id", postId)
         .eq("is_deleted", false)
         .order("created_at", { ascending: true });
@@ -160,12 +167,25 @@ function CommentComposer({ postId }: { postId: string }) {
 
 function PostDetail() {
   const { id } = Route.useParams();
-  const { session } = useAuth();
+  const { session, identity } = useAuth();
   const { data: post, isLoading: postLoading, isError: postError } = usePostQuery(id);
   const { data: comments, isLoading: commentsLoading } = useCommentsQuery(id);
   const queryClient = useQueryClient();
 
-  // Live updates: refresh comments whenever one is added, edited, or removed on this post.
+  const reactionTargetIds = [
+    ...(post ? [post.id] : []),
+    ...((comments ?? []).map((c) => c.id)),
+  ];
+  const authorIds = [
+    ...(post ? [post.user_id] : []),
+    ...((comments ?? []).map((c) => c.user_id)),
+  ];
+
+  const { data: reactionsMap } = useReactionsQuery(reactionTargetIds, identity?.id);
+  const { data: myTrusts } = useMyTrustsQuery(authorIds, identity?.id);
+  const { data: trustCounts } = useTrustCountsQuery(authorIds);
+
+  // Live updates: refresh comments/reactions whenever they change on this post.
   useEffect(() => {
     if (!session) return;
     const channel = supabase
@@ -174,6 +194,11 @@ function PostDetail() {
         "postgres_changes",
         { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${id}` },
         () => void queryClient.invalidateQueries({ queryKey: ["comments", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
+        () => void queryClient.invalidateQueries({ queryKey: ["reactions"] }),
       )
       .subscribe();
 
@@ -214,6 +239,22 @@ function PostDetail() {
           <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
             {post.content}
           </p>
+          <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+            <ReactionButtons
+              targetType="post"
+              targetId={post.id}
+              summary={reactionsMap?.get(post.id)}
+              myUserId={identity?.id}
+              allIds={reactionTargetIds}
+            />
+            <TrustButton
+              authorId={post.user_id}
+              myUserId={identity?.id}
+              isTrusted={myTrusts?.has(post.user_id) ?? false}
+              trustCount={trustCounts?.get(post.user_id)}
+              allAuthorIds={authorIds}
+            />
+          </div>
         </article>
       ) : null}
 
@@ -245,6 +286,22 @@ function PostDetail() {
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {comment.content}
                 </p>
+                <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
+                  <ReactionButtons
+                    targetType="comment"
+                    targetId={comment.id}
+                    summary={reactionsMap?.get(comment.id)}
+                    myUserId={identity?.id}
+                    allIds={reactionTargetIds}
+                  />
+                  <TrustButton
+                    authorId={comment.user_id}
+                    myUserId={identity?.id}
+                    isTrusted={myTrusts?.has(comment.user_id) ?? false}
+                    trustCount={trustCounts?.get(comment.user_id)}
+                    allAuthorIds={authorIds}
+                  />
+                </div>
               </div>
             ))}
           </div>

@@ -4,10 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
+import { ReactionButtons } from "@/components/ReactionButtons";
+import { TrustButton } from "@/components/TrustButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useReactionsQuery } from "@/hooks/useReactions";
+import { useMyTrustsQuery, useTrustCountsQuery } from "@/hooks/useTrust";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
@@ -30,13 +34,13 @@ export const Route = createFileRoute("/")({
 });
 
 const MAX_POST_LENGTH = 2000;
-
 const COMMENT_PREVIEW_COUNT = 2;
 
 type PostRow = {
   id: string;
   content: string;
   created_at: string;
+  user_id: string;
   users: { anon_id: string } | null;
 };
 
@@ -76,7 +80,7 @@ function useFeedQuery() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
-        .select("id, content, created_at, users ( anon_id )")
+        .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -162,7 +166,25 @@ function useCommentPreviewQuery(postId: string) {
   });
 }
 
-function PostCard({ post }: { post: PostRow }) {
+function PostCard({
+  post,
+  myUserId,
+  allPostIds,
+  allAuthorIds,
+  reactionSummary,
+  isTrusted,
+  trustCount,
+}: {
+  post: PostRow;
+  myUserId: string | undefined;
+  allPostIds: string[];
+  allAuthorIds: string[];
+  reactionSummary: ReturnType<typeof useReactionsQuery>["data"] extends Map<string, infer V> | undefined
+    ? V | undefined
+    : undefined;
+  isTrusted: boolean;
+  trustCount: number | undefined;
+}) {
   const { identity } = useAuth();
   const [replyText, setReplyText] = useState("");
   const queryClient = useQueryClient();
@@ -211,6 +233,23 @@ function PostCard({ post }: { post: PostRow }) {
           {post.content}
         </p>
       </Link>
+
+      <div className="mt-3 flex items-center justify-between">
+        <ReactionButtons
+          targetType="post"
+          targetId={post.id}
+          summary={reactionSummary}
+          myUserId={myUserId}
+          allIds={allPostIds}
+        />
+        <TrustButton
+          authorId={post.user_id}
+          myUserId={myUserId}
+          isTrusted={isTrusted}
+          trustCount={trustCount}
+          allAuthorIds={allAuthorIds}
+        />
+      </div>
 
       {total > 0 ? (
         <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
@@ -269,9 +308,16 @@ function PostCard({ post }: { post: PostRow }) {
 }
 
 function Feed() {
-  const { session, loading } = useAuth();
+  const { session, identity, loading } = useAuth();
   const { data: posts, isLoading, isError } = useFeedQuery();
   const queryClient = useQueryClient();
+
+  const postIds = (posts ?? []).map((p) => p.id);
+  const authorIds = (posts ?? []).map((p) => p.user_id);
+
+  const { data: reactionsMap } = useReactionsQuery(postIds, identity?.id);
+  const { data: myTrusts } = useMyTrustsQuery(authorIds, identity?.id);
+  const { data: trustCounts } = useTrustCountsQuery(authorIds);
 
   // Live updates: refresh the feed whenever a post is added, edited, or removed,
   // and refresh comment previews whenever any comment changes.
@@ -288,6 +334,11 @@ function Feed() {
         "postgres_changes",
         { event: "*", schema: "public", table: "comments" },
         () => void queryClient.invalidateQueries({ queryKey: ["comments", "preview"] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
+        () => void queryClient.invalidateQueries({ queryKey: ["reactions"] }),
       )
       .subscribe();
 
@@ -335,7 +386,16 @@ function Feed() {
         ) : null}
 
         {posts?.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard
+            key={post.id}
+            post={post}
+            myUserId={identity?.id}
+            allPostIds={postIds}
+            allAuthorIds={authorIds}
+            reactionSummary={reactionsMap?.get(post.id)}
+            isTrusted={myTrusts?.has(post.user_id) ?? false}
+            trustCount={trustCounts?.get(post.user_id)}
+          />
         ))}
       </div>
 
