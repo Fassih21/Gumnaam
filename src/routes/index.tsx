@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
@@ -81,19 +81,32 @@ function describePostError(error: { message?: string; code?: string } | null): s
   return "Couldn't post right now. Please try again.";
 }
 
+const FEED_PAGE_SIZE = 35;
+
+/** Keyset ("cursor") pagination — each page asks for posts older than the last
+ * loaded post's created_at. Cheaper and more stable under concurrent inserts
+ * than offset-based paging (no skipped/duplicated rows as new posts arrive). */
 function useFeedQuery() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["posts", "feed"],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }: { pageParam: string | null }) => {
+      let query = supabase
         .from("posts")
         .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(FEED_PAGE_SIZE);
+      if (pageParam) query = query.lt("created_at", pageParam);
+
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as PostRow[];
     },
+    getNextPageParam: (lastPage) =>
+      lastPage.length < FEED_PAGE_SIZE
+        ? undefined
+        : lastPage[lastPage.length - 1].created_at,
   });
 }
 
@@ -133,6 +146,27 @@ function useFeedCommentPreviews(postIds: string[]) {
       return map;
     },
   });
+}
+
+/** Returns a ref-callback: attach it to a sentinel div at the bottom of the
+ * list, and `onVisible` fires once whenever that div scrolls into view. */
+function useRefCallback(onVisible: () => void) {
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const onVisibleRef = useRef(onVisible);
+  onVisibleRef.current = onVisible;
+
+  return useCallback((node: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    if (!node) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) onVisibleRef.current();
+      },
+      { rootMargin: "400px" },
+    );
+    observerRef.current.observe(node);
+  }, []);
 }
 
 function Composer() {
@@ -392,11 +426,23 @@ function PostCard({
 
 function Feed() {
   const { session, identity, loading } = useAuth();
-  const { data: posts, isLoading, isError } = useFeedQuery();
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useFeedQuery();
   const queryClient = useQueryClient();
 
-  const postIds = (posts ?? []).map((p) => p.id);
-  const authorIds = (posts ?? []).map((p) => p.user_id);
+  const posts = data?.pages.flat() ?? [];
+  const sentinelRef = useRefCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  });
+
+  const postIds = posts.map((p) => p.id);
+  const authorIds = posts.map((p) => p.user_id);
 
   const { data: reactionsMap } = useReactionsQuery(postIds, identity?.id);
   const { data: myTrusts } = useMyTrustsQuery(authorIds, identity?.id);
@@ -454,7 +500,13 @@ function Feed() {
         </div>
       ) : null}
 
-      <div className="mt-6 space-y-3">
+      {session ? (
+        <div className="sticky top-14 z-30 -mx-4 bg-background/95 px-4 pb-4 pt-4 backdrop-blur-xl">
+          <Composer />
+        </div>
+      ) : null}
+
+      <div className="mt-2 space-y-3">
         {isLoading ? <p className="meta text-center">loading feed…</p> : null}
 
         {isError ? (
@@ -469,7 +521,7 @@ function Feed() {
           </div>
         ) : null}
 
-        {posts?.map((post) => (
+        {posts.map((post) => (
           <PostCard
             key={post.id}
             post={post}
@@ -482,13 +534,21 @@ function Feed() {
             commentPreview={commentPreviews?.get(post.id)}
           />
         ))}
-      </div>
 
-      {session ? (
-        <div className="mt-6">
-          <Composer />
-        </div>
-      ) : null}
+        {!isLoading && !isError && posts.length > 0 ? (
+          <div ref={sentinelRef} className="flex justify-center py-4">
+            {isFetchingNextPage ? (
+              <p className="meta">loading more…</p>
+            ) : hasNextPage ? (
+              <Button size="sm" variant="secondary" onClick={() => void fetchNextPage()}>
+                Load more
+              </Button>
+            ) : (
+              <p className="meta">you're all caught up</p>
+            )}
+          </div>
+        ) : null}
+      </div>
     </AppShell>
   );
 }
