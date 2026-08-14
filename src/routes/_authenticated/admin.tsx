@@ -36,6 +36,17 @@ type ModeratedComment = {
   users: { anon_id: string } | null;
 };
 type RevealedIdentity = { id: string; anon_id: string; name: string; uol_email: string };
+type ReportedItem = {
+  id: string;
+  target_type: "post" | "comment";
+  target_id: string;
+  reason: string;
+  created_at: string;
+  content: string | null;
+  content_is_deleted: boolean;
+  author_anon_id: string | null;
+  post_id: string | null;
+};
 type DirectoryUser = {
   id: string;
   anon_id: string;
@@ -377,6 +388,116 @@ function IdentityTab() {
   );
 }
 
+/* ---------------- Reports queue ---------------- */
+
+function useReportsQuery() {
+  return useQuery({
+    queryKey: ["admin-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("pending_reports");
+      if (error) throw error;
+      return (data ?? []) as ReportedItem[];
+    },
+  });
+}
+
+function ReportsTab() {
+  const { data: reports, isLoading } = useReportsQuery();
+  const queryClient = useQueryClient();
+
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-reports"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-comments"] });
+  };
+
+  const dismiss = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("reports").update({ status: "dismissed" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Report dismissed.");
+      invalidateAll();
+    },
+    onError: () => toast.error("Couldn't dismiss that report."),
+  });
+
+  const removeContent = useMutation({
+    mutationFn: async (report: ReportedItem) => {
+      const table = report.target_type === "post" ? "posts" : "comments";
+      const { error: contentError } = await supabase
+        .from(table)
+        .update({ is_deleted: true })
+        .eq("id", report.target_id);
+      if (contentError) throw contentError;
+      const { error: reportError } = await supabase
+        .from("reports")
+        .update({ status: "resolved" })
+        .eq("id", report.id);
+      if (reportError) throw reportError;
+    },
+    onSuccess: () => {
+      toast.success("Content removed and report resolved.");
+      invalidateAll();
+    },
+    onError: () => toast.error("Couldn't remove that content."),
+  });
+
+  return (
+    <div className="mt-4 space-y-3">
+      {isLoading ? <p className="meta text-center">loading…</p> : null}
+      {!isLoading && reports?.length === 0 ? (
+        <p className="meta text-center">No pending reports. All clear.</p>
+      ) : null}
+
+      {reports?.map((report) => (
+        <div key={report.id} className="surface p-4">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{report.target_type}</Badge>
+            <span className="anon-tag text-xs">{report.author_anon_id ?? "unknown"}</span>
+            {report.content_is_deleted ? (
+              <Badge variant="destructive">already removed</Badge>
+            ) : null}
+            <span className="meta ml-auto">{relativeTime(report.created_at)}</span>
+          </div>
+
+          <Link
+            to="/post/$id"
+            params={{ id: report.post_id ?? report.target_id }}
+            className="mt-2 block line-clamp-3 text-sm text-foreground/90"
+          >
+            {report.content ?? "(content unavailable)"}
+          </Link>
+
+          <p className="meta mt-2">
+            Reason: <span className="text-foreground/80">{report.reason}</span>
+          </p>
+
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={removeContent.isPending || report.content_is_deleted}
+              onClick={() => removeContent.mutate(report)}
+            >
+              Remove content
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={dismiss.isPending}
+              onClick={() => dismiss.mutate(report.id)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------------- User directory (ban/unban) ---------------- */
 
 function useUsersQuery() {
@@ -514,13 +635,17 @@ function AdminDashboard() {
       {loading || !identity?.is_admin ? (
         <p className="meta mt-6 text-center">loading…</p>
       ) : (
-        <Tabs defaultValue="users" className="mt-6">
+        <Tabs defaultValue="reports" className="mt-6">
           <TabsList>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="keywords">Keywords</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="identity">Identity lookup</TabsTrigger>
           </TabsList>
+          <TabsContent value="reports">
+            <ReportsTab />
+          </TabsContent>
           <TabsContent value="users">
             <UsersTab />
           </TabsContent>
