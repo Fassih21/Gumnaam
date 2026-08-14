@@ -28,9 +28,11 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"login" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
@@ -60,6 +62,82 @@ function LoginPage() {
     void navigate({ to: "/", replace: true });
   };
 
+  const submitReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!isUolEmail(email)) {
+      setError("Use your university email: [student-id]@student.uol.edu.pk");
+      return;
+    }
+
+    setBusy(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: `${window.location.origin}/reset-password` },
+    );
+    setBusy(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    setResetSent(true);
+  };
+
+  if (mode === "reset") {
+    return (
+      <AppShell>
+        <div className="surface mx-auto mt-10 max-w-md p-7">
+          <h1 className="text-xl font-semibold tracking-tight">Reset password</h1>
+          <p className="meta mt-1">we'll email you a reset link</p>
+
+          {resetSent ? (
+            <p className="mt-6 text-sm text-muted-foreground">
+              If that email is registered, a reset link has been sent — check your inbox
+              (and spam folder).
+            </p>
+          ) : (
+            <form className="mt-6 space-y-4" onSubmit={submitReset}>
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">University email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  className="font-mono"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="70012345@student.uol.edu.pk"
+                  autoComplete="email"
+                />
+              </div>
+
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+              <Button type="submit" className="w-full" disabled={busy}>
+                {busy ? "Sending…" : "Send reset link"}
+              </Button>
+            </form>
+          )}
+
+          <p className="mt-6 text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="text-primary underline-offset-4 hover:underline"
+              onClick={() => {
+                setMode("login");
+                setError(null);
+                setResetSent(false);
+              }}
+            >
+              Back to log in
+            </button>
+          </p>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="surface mx-auto mt-10 max-w-md p-7">
@@ -81,7 +159,19 @@ function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                onClick={() => {
+                  setMode("reset");
+                  setError(null);
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
             <Input
               id="password"
               type="password"
