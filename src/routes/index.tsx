@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
@@ -44,11 +45,16 @@ type PostRow = {
   users: { anon_id: string } | null;
 };
 
-type CommentRow = {
+type PreviewComment = {
   id: string;
   content: string;
   created_at: string;
-  users: { anon_id: string } | null;
+  anon_id: string | null;
+};
+
+type CommentPreviewEntry = {
+  comments: PreviewComment[];
+  total: number;
 };
 
 function relativeTime(iso: string) {
@@ -86,6 +92,44 @@ function useFeedQuery() {
         .limit(50);
       if (error) throw error;
       return (data ?? []) as unknown as PostRow[];
+    },
+  });
+}
+
+/** One batched call for every post's comment preview + total count, instead of one query per post. */
+function useFeedCommentPreviews(postIds: string[]) {
+  const ids = [...new Set(postIds)].sort();
+  return useQuery({
+    queryKey: ["comment-previews", ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("feed_comment_previews", {
+        _post_ids: ids,
+        _limit: COMMENT_PREVIEW_COUNT,
+      });
+      if (error) throw error;
+
+      const map = new Map<string, CommentPreviewEntry>();
+      for (const id of ids) map.set(id, { comments: [], total: 0 });
+
+      for (const row of data ?? []) {
+        const entry = map.get(row.post_id) ?? { comments: [], total: 0 };
+        entry.total = row.total_count ?? entry.total;
+        if (row.comment_id) {
+          entry.comments.push({
+            id: row.comment_id,
+            content: row.content,
+            created_at: row.created_at,
+            anon_id: row.anon_id,
+          });
+        }
+        map.set(row.post_id, entry);
+      }
+
+      // rows come back newest-first per post; reverse so preview reads oldest-to-newest
+      for (const entry of map.values()) entry.comments.reverse();
+
+      return map;
     },
   });
 }
@@ -148,24 +192,6 @@ function Composer() {
   );
 }
 
-function useCommentPreviewQuery(postId: string) {
-  return useQuery({
-    queryKey: ["comments", "preview", postId],
-    queryFn: async () => {
-      const { data, error, count } = await supabase
-        .from("comments")
-        .select("id, content, created_at, users ( anon_id )", { count: "exact" })
-        .eq("post_id", postId)
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false })
-        .limit(COMMENT_PREVIEW_COUNT);
-      if (error) throw error;
-      const comments = ((data ?? []) as unknown as CommentRow[]).slice().reverse();
-      return { comments, total: count ?? 0 };
-    },
-  });
-}
-
 function PostCard({
   post,
   myUserId,
@@ -174,6 +200,7 @@ function PostCard({
   reactionSummary,
   isTrusted,
   trustCount,
+  commentPreview,
 }: {
   post: PostRow;
   myUserId: string | undefined;
@@ -184,11 +211,12 @@ function PostCard({
     : undefined;
   isTrusted: boolean;
   trustCount: number | undefined;
+  commentPreview: CommentPreviewEntry | undefined;
 }) {
   const { identity } = useAuth();
+  const [expanded, setExpanded] = useState(false);
   const [replyText, setReplyText] = useState("");
   const queryClient = useQueryClient();
-  const { data } = useCommentPreviewQuery(post.id);
 
   const quickReply = useMutation({
     mutationFn: async (text: string) => {
@@ -202,15 +230,15 @@ function PostCard({
     },
     onSuccess: () => {
       setReplyText("");
-      void queryClient.invalidateQueries({ queryKey: ["comments", "preview", post.id] });
+      void queryClient.invalidateQueries({ queryKey: ["comment-previews"] });
     },
     onError: (error: { message?: string; code?: string }) => {
       toast.error(describePostError(error));
     },
   });
 
-  const comments = data?.comments ?? [];
-  const total = data?.total ?? 0;
+  const comments = commentPreview?.comments ?? [];
+  const total = commentPreview?.total ?? 0;
   const hiddenCount = total - comments.length;
   const trimmedReply = replyText.trim();
 
@@ -222,13 +250,23 @@ function PostCard({
   return (
     <div className="surface-interactive p-5">
       <div className="flex items-start justify-between gap-3">
-        <Link to="/post/$id" params={{ id: post.id }} className="flex items-center gap-3">
-          <AnonAvatar />
+        <div className="flex items-center gap-3">
+          <Link to="/post/$id" params={{ id: post.id }}>
+            <AnonAvatar />
+          </Link>
           <div className="flex flex-col">
-            <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
-            <span className="meta">{relativeTime(post.created_at)}</span>
+            <Link
+              to="/anon/$anonId"
+              params={{ anonId: post.users?.anon_id ?? "" }}
+              className="anon-tag transition-colors hover:underline"
+            >
+              {post.users?.anon_id ?? "Anon#••••"}
+            </Link>
+            <Link to="/post/$id" params={{ id: post.id }} className="meta">
+              {relativeTime(post.created_at)}
+            </Link>
           </div>
-        </Link>
+        </div>
         <TrustButton
           authorId={post.user_id}
           myUserId={myUserId}
@@ -246,7 +284,7 @@ function PostCard({
         {post.content}
       </Link>
 
-      <div className="mt-3">
+      <div className="mt-3 flex items-center gap-4">
         <ReactionButtons
           targetType="post"
           targetId={post.id}
@@ -254,9 +292,20 @@ function PostCard({
           myUserId={myUserId}
           allIds={allPostIds}
         />
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className={`flex items-center gap-1.5 rounded p-1 text-xs font-medium transition-colors ${
+            expanded ? "text-primary" : "text-muted-foreground hover:text-foreground"
+          }`}
+          aria-expanded={expanded}
+        >
+          <MessageCircle className="size-4" fill={expanded ? "currentColor" : "none"} />
+          <span>{total}</span>
+        </button>
       </div>
 
-      {total > 0 ? (
+      {expanded ? (
         <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
           {hiddenCount > 0 ? (
             <Link
@@ -267,44 +316,55 @@ function PostCard({
               View all {total} comment{total === 1 ? "" : "s"}
             </Link>
           ) : null}
+          {comments.length === 0 ? (
+            <p className="meta">No comments yet. Be the first to reply.</p>
+          ) : null}
           {comments.map((comment) => (
-            <Link
-              key={comment.id}
-              to="/post/$id"
-              params={{ id: post.id }}
-              className="flex gap-2 text-sm"
-            >
-              <span className="anon-tag shrink-0">{comment.users?.anon_id ?? "Anon#••••"}</span>
-              <span className="line-clamp-2 text-foreground/80">{comment.content}</span>
-            </Link>
+            <div key={comment.id} className="flex gap-2 text-sm">
+              <Link
+                to="/anon/$anonId"
+                params={{ anonId: comment.anon_id ?? "" }}
+                className="anon-tag shrink-0 transition-colors hover:underline"
+              >
+                {comment.anon_id ?? "Anon#••••"}
+              </Link>
+              <Link
+                to="/post/$id"
+                params={{ id: post.id }}
+                className="line-clamp-2 flex-1 text-foreground/80"
+              >
+                {comment.content}
+              </Link>
+            </div>
           ))}
-        </div>
-      ) : null}
 
-      {identity ? (
-        <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3">
-          <AnonAvatar className="size-6" />
-          <Input
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                submitReply();
-              }
-            }}
-            placeholder="Add a comment…"
-            className="h-8 flex-1 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
-          {trimmedReply ? (
-            <button
-              type="button"
-              onClick={submitReply}
-              disabled={quickReply.isPending}
-              className="shrink-0 text-sm font-medium text-primary disabled:opacity-50"
-            >
-              {quickReply.isPending ? "Posting…" : "Post"}
-            </button>
+          {identity ? (
+            <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3">
+              <AnonAvatar className="size-6" />
+              <Input
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitReply();
+                  }
+                }}
+                placeholder="Add a comment…"
+                className="h-8 flex-1 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+                autoFocus
+              />
+              {trimmedReply ? (
+                <button
+                  type="button"
+                  onClick={submitReply}
+                  disabled={quickReply.isPending}
+                  className="shrink-0 text-sm font-medium text-primary disabled:opacity-50"
+                >
+                  {quickReply.isPending ? "Posting…" : "Post"}
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -323,6 +383,7 @@ function Feed() {
   const { data: reactionsMap } = useReactionsQuery(postIds, identity?.id);
   const { data: myTrusts } = useMyTrustsQuery(authorIds, identity?.id);
   const { data: trustCounts } = useTrustCountsQuery(authorIds);
+  const { data: commentPreviews } = useFeedCommentPreviews(postIds);
 
   // Live updates: refresh the feed whenever a post is added, edited, or removed,
   // and refresh comment previews whenever any comment changes.
@@ -338,7 +399,7 @@ function Feed() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "comments" },
-        () => void queryClient.invalidateQueries({ queryKey: ["comments", "preview"] }),
+        () => void queryClient.invalidateQueries({ queryKey: ["comment-previews"] }),
       )
       .on(
         "postgres_changes",
@@ -400,6 +461,7 @@ function Feed() {
             reactionSummary={reactionsMap?.get(post.id)}
             isTrusted={myTrusts?.has(post.user_id) ?? false}
             trustCount={trustCounts?.get(post.user_id)}
+            commentPreview={commentPreviews?.get(post.id)}
           />
         ))}
       </div>

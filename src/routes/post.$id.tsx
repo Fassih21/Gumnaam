@@ -233,7 +233,13 @@ function PostDetail() {
             <div className="flex items-center gap-3">
               <AnonAvatar />
               <div className="flex flex-col">
-                <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
+                <Link
+                  to="/anon/$anonId"
+                  params={{ anonId: post.users?.anon_id ?? "" }}
+                  className="anon-tag transition-colors hover:underline"
+                >
+                  {post.users?.anon_id ?? "Anon#••••"}
+                </Link>
                 <span className="meta">{relativeTime(post.created_at)}</span>
               </div>
             </div>
@@ -283,7 +289,13 @@ function PostDetail() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <AnonAvatar className="size-8" />
-                    <span className="anon-tag">{comment.users?.anon_id ?? "Anon#••••"}</span>
+                    <Link
+                      to="/anon/$anonId"
+                      params={{ anonId: comment.users?.anon_id ?? "" }}
+                      className="anon-tag transition-colors hover:underline"
+                    >
+                      {comment.users?.anon_id ?? "Anon#••••"}
+                    </Link>
                     <span className="meta">{relativeTime(comment.created_at)}</span>
                   </div>
                   <TrustButton
