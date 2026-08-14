@@ -186,6 +186,39 @@ function PostDetail() {
   const { data: comments, isLoading: commentsLoading } = useCommentsQuery(id);
   const queryClient = useQueryClient();
 
+  const [editingPost, setEditingPost] = useState(false);
+  const [postDraft, setPostDraft] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+
+  const updatePost = useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase.from("posts").update({ content }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingPost(false);
+      void queryClient.invalidateQueries({ queryKey: ["posts", id] });
+      void queryClient.invalidateQueries({ queryKey: ["posts", "feed"] });
+      void queryClient.invalidateQueries({ queryKey: ["own-posts"] });
+    },
+    onError: (error: { message?: string; code?: string }) => toast.error(describeError(error)),
+  });
+
+  const updateComment = useMutation({
+    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+      const { error } = await supabase.from("comments").update({ content }).eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingCommentId(null);
+      void queryClient.invalidateQueries({ queryKey: ["comments", id] });
+      void queryClient.invalidateQueries({ queryKey: ["comment-previews"] });
+      void queryClient.invalidateQueries({ queryKey: ["own-comments"] });
+    },
+    onError: (error: { message?: string; code?: string }) => toast.error(describeError(error)),
+  });
+
   const reactionTargetIds = [
     ...(post ? [post.id] : []),
     ...((comments ?? []).map((c) => c.id)),
@@ -265,9 +298,37 @@ function PostDetail() {
               allAuthorIds={authorIds}
             />
           </div>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-            {post.content}
-          </p>
+          {editingPost ? (
+            <div className="mt-4 space-y-2">
+              <Textarea
+                value={postDraft}
+                onChange={(e) => setPostDraft(e.target.value)}
+                className="min-h-[100px] resize-none"
+                maxLength={2020}
+                autoFocus
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPost(false)}
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <Button
+                  size="sm"
+                  disabled={!postDraft.trim() || updatePost.isPending}
+                  onClick={() => updatePost.mutate(postDraft.trim())}
+                >
+                  {updatePost.isPending ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+              {post.content}
+            </p>
+          )}
           <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
             <ReactionButtons
               targetType="post"
@@ -276,7 +337,21 @@ function PostDetail() {
               myUserId={identity?.id}
               allIds={reactionTargetIds}
             />
-            <ReportButton targetType="post" targetId={post.id} />
+            <div className="flex items-center gap-3">
+              {identity?.id === post.user_id ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPostDraft(post.content);
+                    setEditingPost(true);
+                  }}
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Edit
+                </button>
+              ) : null}
+              <ReportButton targetType="post" targetId={post.id} />
+            </div>
           </div>
         </article>
       ) : null}
@@ -321,9 +396,39 @@ function PostDetail() {
                     allAuthorIds={authorIds}
                   />
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                  {comment.content}
-                </p>
+                {editingCommentId === comment.id ? (
+                  <div className="mt-3 space-y-2">
+                    <Textarea
+                      value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      className="min-h-[64px] resize-none"
+                      maxLength={MAX_COMMENT_LENGTH + 20}
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingCommentId(null)}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                      <Button
+                        size="sm"
+                        disabled={!commentDraft.trim() || updateComment.isPending}
+                        onClick={() =>
+                          updateComment.mutate({ commentId: comment.id, content: commentDraft.trim() })
+                        }
+                      >
+                        {updateComment.isPending ? "Saving…" : "Save"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                    {comment.content}
+                  </p>
+                )}
                 <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
                   <ReactionButtons
                     targetType="comment"
@@ -332,7 +437,21 @@ function PostDetail() {
                     myUserId={identity?.id}
                     allIds={reactionTargetIds}
                   />
-                  <ReportButton targetType="comment" targetId={comment.id} />
+                  <div className="flex items-center gap-3">
+                    {identity?.id === comment.user_id ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommentDraft(comment.content);
+                          setEditingCommentId(comment.id);
+                        }}
+                        className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Edit
+                      </button>
+                    ) : null}
+                    <ReportButton targetType="comment" targetId={comment.id} />
+                  </div>
                 </div>
               </div>
             ))}
