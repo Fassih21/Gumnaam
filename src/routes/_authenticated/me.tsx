@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -93,6 +94,41 @@ function MyDashboard() {
   const { data: posts, isLoading: postsLoading } = useOwnPostsQuery(identity?.id);
   const { data: comments, isLoading: commentsLoading } = useOwnCommentsQuery(identity?.id);
 
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [postDraft, setPostDraft] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+
+  const editPost = useMutation({
+    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+      const { error } = await supabase.from("posts").update({ content }).eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingPostId(null);
+      toast.success("Post updated.");
+      void queryClient.invalidateQueries({ queryKey: ["own-posts", identity?.id] });
+      void queryClient.invalidateQueries({ queryKey: ["posts", "feed"] });
+      void queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+    onError: () => toast.error("Couldn't save that post."),
+  });
+
+  const editComment = useMutation({
+    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+      const { error } = await supabase.from("comments").update({ content }).eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingCommentId(null);
+      toast.success("Comment updated.");
+      void queryClient.invalidateQueries({ queryKey: ["own-comments", identity?.id] });
+      void queryClient.invalidateQueries({ queryKey: ["comments"] });
+      void queryClient.invalidateQueries({ queryKey: ["comment-previews"] });
+    },
+    onError: () => toast.error("Couldn't save that comment."),
+  });
+
   const deletePost = useMutation({
     mutationFn: async (postId: string) => {
       const { error } = await supabase.from("posts").delete().eq("id", postId);
@@ -140,23 +176,62 @@ function MyDashboard() {
         ) : null}
         {posts?.map((post) => (
           <div key={post.id} className="surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <Link
-                to="/post/$id"
-                params={{ id: post.id }}
-                className="flex-1 text-sm leading-relaxed text-foreground/90"
-              >
-                {post.content}
-              </Link>
-              <button
-                type="button"
-                onClick={() => deletePost.mutate(post.id)}
-                disabled={deletePost.isPending}
-                className="shrink-0 text-sm font-medium text-destructive disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
+            {editingPostId === post.id ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={postDraft}
+                  onChange={(e) => setPostDraft(e.target.value)}
+                  className="min-h-[80px] resize-none"
+                  autoFocus
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPostId(null)}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <Button
+                    size="sm"
+                    disabled={!postDraft.trim() || editPost.isPending}
+                    onClick={() => editPost.mutate({ postId: post.id, content: postDraft.trim() })}
+                  >
+                    {editPost.isPending ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  to="/post/$id"
+                  params={{ id: post.id }}
+                  className="flex-1 text-sm leading-relaxed text-foreground/90"
+                >
+                  {post.content}
+                </Link>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostDraft(post.content);
+                      setEditingPostId(post.id);
+                    }}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePost.mutate(post.id)}
+                    disabled={deletePost.isPending}
+                    className="text-sm font-medium text-destructive disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="meta mt-2">{relativeTime(post.created_at)}</p>
           </div>
         ))}
@@ -172,23 +247,64 @@ function MyDashboard() {
         ) : null}
         {comments?.map((comment) => (
           <div key={comment.id} className="surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <Link
-                to="/post/$id"
-                params={{ id: comment.post_id }}
-                className="flex-1 text-sm leading-relaxed text-foreground/90"
-              >
-                {comment.content}
-              </Link>
-              <button
-                type="button"
-                onClick={() => deleteComment.mutate(comment.id)}
-                disabled={deleteComment.isPending}
-                className="shrink-0 text-sm font-medium text-destructive disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
+            {editingCommentId === comment.id ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  className="min-h-[64px] resize-none"
+                  autoFocus
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCommentId(null)}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <Button
+                    size="sm"
+                    disabled={!commentDraft.trim() || editComment.isPending}
+                    onClick={() =>
+                      editComment.mutate({ commentId: comment.id, content: commentDraft.trim() })
+                    }
+                  >
+                    {editComment.isPending ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  to="/post/$id"
+                  params={{ id: comment.post_id }}
+                  className="flex-1 text-sm leading-relaxed text-foreground/90"
+                >
+                  {comment.content}
+                </Link>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommentDraft(comment.content);
+                      setEditingCommentId(comment.id);
+                    }}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteComment.mutate(comment.id)}
+                    disabled={deleteComment.isPending}
+                    className="text-sm font-medium text-destructive disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="meta mt-2">on: {comment.posts?.content?.slice(0, 60) ?? "a post"}…</p>
           </div>
         ))}
