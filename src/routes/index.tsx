@@ -160,7 +160,21 @@ function Composer() {
 
   const trimmed = content.trim();
   const remaining = MAX_POST_LENGTH - content.length;
-  const canSubmit = trimmed.length > 0 && content.length <= MAX_POST_LENGTH && !createPost.isPending;
+  const canSubmit =
+    trimmed.length > 0 &&
+    content.length <= MAX_POST_LENGTH &&
+    !createPost.isPending &&
+    !identity?.is_banned;
+
+  if (identity?.is_banned) {
+    return (
+      <div className="surface p-4 text-center">
+        <p className="text-sm text-muted-foreground">
+          Your account has been suspended. You can still read the feed, but you can't post.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="surface p-4">

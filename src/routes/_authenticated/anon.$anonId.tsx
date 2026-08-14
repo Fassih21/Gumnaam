@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/anon/$anonId")({
@@ -11,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/anon/$anonId")({
   component: AnonProfile,
 });
 
-type ProfileUser = { id: string; anon_id: string; created_at: string };
+type ProfileUser = { id: string; anon_id: string; created_at: string; is_banned: boolean };
 type ProfilePost = { id: string; content: string; created_at: string };
 type ProfileComment = {
   id: string;
@@ -38,7 +42,7 @@ function useProfileUserQuery(anonId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
-        .select("id, anon_id, created_at")
+        .select("id, anon_id, created_at, is_banned")
         .eq("anon_id", anonId)
         .maybeSingle();
       if (error) throw error;
@@ -55,7 +59,7 @@ function useTrustScoreQuery(userId: string | undefined) {
       const { count, error } = await supabase
         .from("trusts")
         .select("id", { count: "exact", head: true })
-        .eq("trusted_id", userId);
+        .eq("trusted_id", userId!);
       if (error) throw error;
       return count ?? 0;
     },
@@ -70,7 +74,7 @@ function useProfilePostsQuery(userId: string | undefined) {
       const { data, error } = await supabase
         .from("posts")
         .select("id, content, created_at")
-        .eq("user_id", userId)
+        .eq("user_id", userId!)
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -87,7 +91,7 @@ function useProfileCommentsQuery(userId: string | undefined) {
       const { data, error } = await supabase
         .from("comments")
         .select("id, content, created_at, post_id, posts ( content )")
-        .eq("user_id", userId)
+        .eq("user_id", userId!)
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -98,10 +102,31 @@ function useProfileCommentsQuery(userId: string | undefined) {
 
 function AnonProfile() {
   const { anonId } = Route.useParams();
+  const { identity } = useAuth();
+  const queryClient = useQueryClient();
   const { data: profileUser, isLoading: userLoading } = useProfileUserQuery(anonId);
   const { data: trustScore } = useTrustScoreQuery(profileUser?.id);
   const { data: posts, isLoading: postsLoading } = useProfilePostsQuery(profileUser?.id);
   const { data: comments, isLoading: commentsLoading } = useProfileCommentsQuery(profileUser?.id);
+
+  const toggleBan = useMutation({
+    mutationFn: async (nextBanned: boolean) => {
+      if (!profileUser) return;
+      const payload: Record<string, unknown> = { is_banned: nextBanned };
+      const { error } = await supabase
+        .from("users")
+        .update(payload as any)
+        .eq("id", profileUser.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, nextBanned) => {
+      toast.success(nextBanned ? "User banned." : "User unbanned.");
+      void queryClient.invalidateQueries({ queryKey: ["anon-profile-user", anonId] });
+    },
+    onError: () => toast.error("Couldn't update that user."),
+  });
+
+  const isSelf = profileUser?.id === identity?.id;
 
   return (
     <AppShell>
@@ -123,13 +148,28 @@ function AnonProfile() {
             <div className="flex items-center gap-3">
               <AnonAvatar />
               <div>
-                <p className="anon-tag text-base">{profileUser.anon_id}</p>
+                <div className="flex items-center gap-2">
+                  <p className="anon-tag text-base">{profileUser.anon_id}</p>
+                  {profileUser.is_banned ? <Badge variant="destructive">banned</Badge> : null}
+                </div>
                 <p className="meta">member since {relativeTime(profileUser.created_at)}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Trust score</p>
-              <p className="text-2xl font-semibold">{trustScore ?? 0}</p>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Trust score</p>
+                <p className="text-2xl font-semibold">{trustScore ?? 0}</p>
+              </div>
+              {identity?.is_admin && !isSelf ? (
+                <Button
+                  size="sm"
+                  variant={profileUser.is_banned ? "outline" : "destructive"}
+                  disabled={toggleBan.isPending}
+                  onClick={() => toggleBan.mutate(!profileUser.is_banned)}
+                >
+                  {profileUser.is_banned ? "Unban" : "Ban"}
+                </Button>
+              ) : null}
             </div>
           </div>
 
