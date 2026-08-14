@@ -55,7 +55,7 @@ function useTrustScoreQuery(userId: string | undefined) {
       const { count, error } = await supabase
         .from("trusts")
         .select("id", { count: "exact", head: true })
-        .eq("trusted_id", userId!);
+        .eq("trusted_id", userId);
       if (error) throw error;
       return count ?? 0;
     },
@@ -70,7 +70,7 @@ function useProfilePostsQuery(userId: string | undefined) {
       const { data, error } = await supabase
         .from("posts")
         .select("id, content, created_at")
-        .eq("user_id", userId!)
+        .eq("user_id", userId)
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -87,7 +87,7 @@ function useProfileCommentsQuery(userId: string | undefined) {
       const { data, error } = await supabase
         .from("comments")
         .select("id, content, created_at, post_id, posts ( content )")
-        .eq("user_id", userId!)
+        .eq("user_id", userId)
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
       if (error) throw error;

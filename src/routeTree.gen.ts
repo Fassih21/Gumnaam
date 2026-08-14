@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as PostIdRouteImport } from './routes/post.$id'
 import { Route as AuthenticatedAnonAnonIdRouteImport } from './routes/_authenticated/anon.$anonId'
@@ -29,6 +30,11 @@ const LoginRoute = LoginRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/_authenticated/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/me': typeof AuthenticatedMeRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/me': typeof AuthenticatedMeRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
@@ -68,20 +76,36 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/post/$id': typeof PostIdRoute
   '/_authenticated/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/me' | '/post/$id' | '/anon/$anonId'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/admin'
+    | '/me'
+    | '/post/$id'
+    | '/anon/$anonId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/me' | '/post/$id' | '/anon/$anonId'
+  to:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/admin'
+    | '/me'
+    | '/post/$id'
+    | '/anon/$anonId'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/signup'
+    | '/_authenticated/admin'
     | '/_authenticated/me'
     | '/post/$id'
     | '/_authenticated/anon/$anonId'
@@ -91,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   PostIdRoute: typeof PostIdRoute
   AuthenticatedAnonAnonIdRoute: typeof AuthenticatedAnonAnonIdRoute
@@ -117,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/me': {
@@ -147,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   PostIdRoute: PostIdRoute,
   AuthenticatedAnonAnonIdRoute: AuthenticatedAnonAnonIdRoute,
