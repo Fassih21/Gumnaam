@@ -221,33 +221,38 @@ function PostCard({
 
   return (
     <div className="surface-interactive p-5">
-      <Link to="/post/$id" params={{ id: post.id }} className="block">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <Link to="/post/$id" params={{ id: post.id }} className="flex items-center gap-3">
           <AnonAvatar />
           <div className="flex flex-col">
             <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
             <span className="meta">{relativeTime(post.created_at)}</span>
           </div>
-        </div>
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-          {post.content}
-        </p>
-      </Link>
-
-      <div className="mt-3 flex items-center justify-between">
-        <ReactionButtons
-          targetType="post"
-          targetId={post.id}
-          summary={reactionSummary}
-          myUserId={myUserId}
-          allIds={allPostIds}
-        />
+        </Link>
         <TrustButton
           authorId={post.user_id}
           myUserId={myUserId}
           isTrusted={isTrusted}
           trustCount={trustCount}
           allAuthorIds={allAuthorIds}
+        />
+      </div>
+
+      <Link
+        to="/post/$id"
+        params={{ id: post.id }}
+        className="mt-4 block whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"
+      >
+        {post.content}
+      </Link>
+
+      <div className="mt-3">
+        <ReactionButtons
+          targetType="post"
+          targetId={post.id}
+          summary={reactionSummary}
+          myUserId={myUserId}
+          allIds={allPostIds}
         />
       </div>
 

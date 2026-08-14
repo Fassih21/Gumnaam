@@ -229,30 +229,32 @@ function PostDetail() {
 
       {post ? (
         <article className="surface mt-4 p-5">
-          <div className="flex items-center gap-3">
-            <AnonAvatar />
-            <div className="flex flex-col">
-              <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
-              <span className="meta">{relativeTime(post.created_at)}</span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <AnonAvatar />
+              <div className="flex flex-col">
+                <span className="anon-tag">{post.users?.anon_id ?? "Anon#••••"}</span>
+                <span className="meta">{relativeTime(post.created_at)}</span>
+              </div>
             </div>
-          </div>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-            {post.content}
-          </p>
-          <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
-            <ReactionButtons
-              targetType="post"
-              targetId={post.id}
-              summary={reactionsMap?.get(post.id)}
-              myUserId={identity?.id}
-              allIds={reactionTargetIds}
-            />
             <TrustButton
               authorId={post.user_id}
               myUserId={identity?.id}
               isTrusted={myTrusts?.has(post.user_id) ?? false}
               trustCount={trustCounts?.get(post.user_id)}
               allAuthorIds={authorIds}
+            />
+          </div>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+            {post.content}
+          </p>
+          <div className="mt-4 border-t border-border/60 pt-3">
+            <ReactionButtons
+              targetType="post"
+              targetId={post.id}
+              summary={reactionsMap?.get(post.id)}
+              myUserId={identity?.id}
+              allIds={reactionTargetIds}
             />
           </div>
         </article>
@@ -278,28 +280,30 @@ function PostDetail() {
 
             {comments?.map((comment) => (
               <div key={comment.id} className="surface p-4">
-                <div className="flex items-center gap-3">
-                  <AnonAvatar className="size-8" />
-                  <span className="anon-tag">{comment.users?.anon_id ?? "Anon#••••"}</span>
-                  <span className="meta">{relativeTime(comment.created_at)}</span>
-                </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                  {comment.content}
-                </p>
-                <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
-                  <ReactionButtons
-                    targetType="comment"
-                    targetId={comment.id}
-                    summary={reactionsMap?.get(comment.id)}
-                    myUserId={identity?.id}
-                    allIds={reactionTargetIds}
-                  />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <AnonAvatar className="size-8" />
+                    <span className="anon-tag">{comment.users?.anon_id ?? "Anon#••••"}</span>
+                    <span className="meta">{relativeTime(comment.created_at)}</span>
+                  </div>
                   <TrustButton
                     authorId={comment.user_id}
                     myUserId={identity?.id}
                     isTrusted={myTrusts?.has(comment.user_id) ?? false}
                     trustCount={trustCounts?.get(comment.user_id)}
                     allAuthorIds={authorIds}
+                  />
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {comment.content}
+                </p>
+                <div className="mt-3 border-t border-border/60 pt-2">
+                  <ReactionButtons
+                    targetType="comment"
+                    targetId={comment.id}
+                    summary={reactionsMap?.get(comment.id)}
+                    myUserId={identity?.id}
+                    allIds={reactionTargetIds}
                   />
                 </div>
               </div>
