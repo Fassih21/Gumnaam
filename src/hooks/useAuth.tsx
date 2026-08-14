@@ -8,6 +8,7 @@ export type Identity = {
   name: string;
   uol_email: string;
   is_admin: boolean;
+  is_banned: boolean;
 };
 
 /**

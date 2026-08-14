@@ -25,6 +25,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {loading ? null : session ? (
             <div className="flex items-center gap-2">
+              {identity?.is_admin ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/admin">Admin</Link>
+                </Button>
+              ) : null}
               <Link to="/me" className="flex items-center gap-2">
                 <span className="anon-tag hidden sm:inline">{identity?.anon_id ?? "…"}</span>
                 <AnonAvatar className="size-8" />

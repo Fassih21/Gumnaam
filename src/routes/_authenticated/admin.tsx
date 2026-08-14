@@ -36,6 +36,13 @@ type ModeratedComment = {
   users: { anon_id: string } | null;
 };
 type RevealedIdentity = { id: string; anon_id: string; name: string; uol_email: string };
+type DirectoryUser = {
+  id: string;
+  anon_id: string;
+  is_admin: boolean;
+  is_banned: boolean;
+  created_at: string;
+};
 
 function relativeTime(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -370,6 +377,124 @@ function IdentityTab() {
   );
 }
 
+/* ---------------- User directory (ban/unban) ---------------- */
+
+function useUsersQuery() {
+  return useQuery({
+    queryKey: ["admin-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, anon_id, is_admin, is_banned, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as DirectoryUser[];
+    },
+  });
+}
+
+function UsersTab() {
+  const { identity: myIdentity } = useAuth();
+  const { data: users, isLoading } = useUsersQuery();
+  const [search, setSearch] = useState("");
+  const [revealed, setRevealed] = useState<Record<string, RevealedIdentity>>({});
+  const [revealingId, setRevealingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const toggleBan = useMutation({
+    mutationFn: async (params: { id: string; nextBanned: boolean }) => {
+      const { error } = await supabase
+        .from("users")
+        .update({ is_banned: params.nextBanned })
+        .eq("id", params.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.nextBanned ? "User banned." : "User unbanned.");
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: () => toast.error("Couldn't update that user."),
+  });
+
+  const reveal = async (userId: string) => {
+    setRevealingId(userId);
+    try {
+      const { data, error } = await supabase.rpc("admin_identity", { _user_id: userId });
+      if (error) throw error;
+      const row = data?.[0] as RevealedIdentity | undefined;
+      if (row) setRevealed((prev) => ({ ...prev, [userId]: row }));
+    } catch {
+      toast.error("Couldn't reveal that identity.");
+    } finally {
+      setRevealingId(null);
+    }
+  };
+
+  const filtered = (users ?? []).filter((u) =>
+    u.anon_id.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
+  return (
+    <div className="mt-4 space-y-4">
+      <Input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Filter by anon ID…"
+      />
+
+      {isLoading ? <p className="meta text-center">loading…</p> : null}
+      {!isLoading && filtered.length === 0 ? (
+        <p className="meta text-center">No users match.</p>
+      ) : null}
+
+      <div className="space-y-3">
+        {filtered.map((u) => {
+          const info = revealed[u.id];
+          const isSelf = u.id === myIdentity?.id;
+          return (
+            <div key={u.id} className="surface p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="anon-tag">{u.anon_id}</span>
+                    {u.is_admin ? <Badge variant="secondary">admin</Badge> : null}
+                    {u.is_banned ? <Badge variant="destructive">banned</Badge> : null}
+                  </div>
+                  <p className="meta mt-1">joined {relativeTime(u.created_at)}</p>
+                  {info ? (
+                    <p className="mt-2 text-sm text-foreground/90">
+                      {info.name} · {info.uol_email}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={revealingId === u.id}
+                    onClick={() => void reveal(u.id)}
+                  >
+                    {info ? "Refresh" : revealingId === u.id ? "Revealing…" : "Reveal"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={u.is_banned ? "outline" : "destructive"}
+                    disabled={toggleBan.isPending || (isSelf && !u.is_banned)}
+                    title={isSelf && !u.is_banned ? "You can't ban your own account" : undefined}
+                    onClick={() => toggleBan.mutate({ id: u.id, nextBanned: !u.is_banned })}
+                  >
+                    {u.is_banned ? "Unban" : "Ban"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Shell + guard ---------------- */
 
 function AdminDashboard() {
@@ -389,12 +514,16 @@ function AdminDashboard() {
       {loading || !identity?.is_admin ? (
         <p className="meta mt-6 text-center">loading…</p>
       ) : (
-        <Tabs defaultValue="keywords" className="mt-6">
+        <Tabs defaultValue="users" className="mt-6">
           <TabsList>
+            <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="keywords">Keywords</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="identity">Identity lookup</TabsTrigger>
           </TabsList>
+          <TabsContent value="users">
+            <UsersTab />
+          </TabsContent>
           <TabsContent value="keywords">
             <KeywordsTab />
           </TabsContent>
