@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { ReactionButtons } from "@/components/ReactionButtons";
+import { ReportButton } from "@/components/ReportButton";
 import { TrustButton } from "@/components/TrustButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -317,6 +318,9 @@ function PostCard({
           <MessageCircle className="size-4" fill={expanded ? "currentColor" : "none"} />
           <span>{total}</span>
         </button>
+        <div className="ml-auto">
+          <ReportButton targetType="post" targetId={post.id} />
+        </div>
       </div>
 
       {expanded ? (

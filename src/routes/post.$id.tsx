@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { ReactionButtons } from "@/components/ReactionButtons";
+import { ReportButton } from "@/components/ReportButton";
 import { TrustButton } from "@/components/TrustButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -267,7 +268,7 @@ function PostDetail() {
           <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
             {post.content}
           </p>
-          <div className="mt-4 border-t border-border/60 pt-3">
+          <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
             <ReactionButtons
               targetType="post"
               targetId={post.id}
@@ -275,6 +276,7 @@ function PostDetail() {
               myUserId={identity?.id}
               allIds={reactionTargetIds}
             />
+            <ReportButton targetType="post" targetId={post.id} />
           </div>
         </article>
       ) : null}
@@ -322,7 +324,7 @@ function PostDetail() {
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {comment.content}
                 </p>
-                <div className="mt-3 border-t border-border/60 pt-2">
+                <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
                   <ReactionButtons
                     targetType="comment"
                     targetId={comment.id}
@@ -330,6 +332,7 @@ function PostDetail() {
                     myUserId={identity?.id}
                     allIds={reactionTargetIds}
                   />
+                  <ReportButton targetType="comment" targetId={comment.id} />
                 </div>
               </div>
             ))}
