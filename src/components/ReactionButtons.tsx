@@ -21,15 +21,17 @@ export function ReactionButtons({
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5 rounded-full bg-secondary/50 p-0.5">
       <button type="button" onClick={() => react("upvote")} disabled={!myUserId}
-        className={`rounded p-1 transition-colors ${mine === "upvote" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+        className={`rounded-full p-1 transition-colors ${mine === "upvote" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
         aria-label="Upvote">
         <ArrowBigUp className="size-4" fill={mine === "upvote" ? "currentColor" : "none"} />
       </button>
-      <span className="min-w-[1.5ch] text-center text-xs font-medium text-muted-foreground">{score}</span>
+      <span className={`min-w-[1.5ch] text-center text-xs font-semibold ${
+        score > 0 ? "text-primary" : score < 0 ? "text-destructive" : "text-muted-foreground"
+      }`}>{score}</span>
       <button type="button" onClick={() => react("downvote")} disabled={!myUserId}
-        className={`rounded p-1 transition-colors ${mine === "downvote" ? "text-destructive" : "text-muted-foreground hover:text-foreground"}`}
+        className={`rounded-full p-1 transition-colors ${mine === "downvote" ? "bg-destructive/15 text-destructive" : "text-muted-foreground hover:text-foreground"}`}
         aria-label="Downvote">
         <ArrowBigDown className="size-4" fill={mine === "downvote" ? "currentColor" : "none"} />
       </button>

@@ -212,18 +212,18 @@ function Composer() {
   }
 
   return (
-    <div className="surface p-4">
-      <div className="flex items-start gap-3">
-        <AnonAvatar />
+    <div className="surface p-3">
+      <div className="flex items-start gap-2.5">
+        <AnonAvatar className="size-8" />
         <div className="flex-1">
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={`Post as ${identity?.anon_id ?? "Anon#••••"}…`}
-            className="min-h-[72px] resize-none border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+            className="min-h-[40px] resize-none border-none bg-transparent px-0 py-1.5 text-sm shadow-none focus-visible:ring-0"
             maxLength={MAX_POST_LENGTH + 20}
           />
-          <div className="mt-2 flex items-center justify-between">
+          <div className="mt-1.5 flex items-center justify-between">
             <span className={`meta ${remaining < 0 ? "text-destructive" : ""}`}>
               {remaining} characters left
             </span>
@@ -296,8 +296,14 @@ function PostCard({
     quickReply.mutate(trimmedReply);
   };
 
+  const isFresh = Date.now() - new Date(post.created_at).getTime() < 60 * 60 * 1000;
+
   return (
-    <div className="surface-interactive p-5">
+    <div
+      className={`surface-interactive border-l-2 p-5 ${
+        isFresh ? "border-l-primary/60" : "border-l-transparent"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link to="/post/$id" params={{ id: post.id }}>
@@ -479,8 +485,8 @@ function Feed() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight">Campus feed</h1>
-      <p className="meta mt-1">university of lahore · anonymous · verified students only</p>
+      <h1 className="wordmark text-2xl text-foreground">UOL Feed</h1>
+      
 
       {!loading && !session ? (
         <div className="surface mt-6 p-6">
@@ -501,7 +507,7 @@ function Feed() {
       ) : null}
 
       {session ? (
-        <div className="sticky top-14 z-30 -mx-4 bg-background/95 px-4 pb-4 pt-4 backdrop-blur-xl">
+        <div className="sticky top-14 z-30 pb-3 pt-3">
           <Composer />
         </div>
       ) : null}
@@ -515,9 +521,6 @@ function Feed() {
 
         {!isLoading && !isError && posts?.length === 0 ? (
           <div className="surface p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No posts yet. Be the first to say something.
-            </p>
           </div>
         ) : null}
 
@@ -544,7 +547,7 @@ function Feed() {
                 Load more
               </Button>
             ) : (
-              <p className="meta">you're all caught up</p>
+              <p className="meta">that's everything — feed's quiet for now</p>
             )}
           </div>
         ) : null}

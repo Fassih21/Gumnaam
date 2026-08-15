@@ -1,6 +1,6 @@
 -- =========================================================
 -- Security fixes: impersonation bug, keyword moderation
--- enforcement, blocked_keywords exposure, realtime enable.
+--    enforcement, blocked_keywords exposure, realtime enable.
 -- =========================================================
 
 -- 1. Fix impersonation bug: UPDATE policies allowed rewriting
