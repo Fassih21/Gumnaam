@@ -67,8 +67,8 @@ export function ReportButton({
 
   if (submitted) {
     return (
-      <span className="meta inline-flex items-center gap-1">
-        <Flag className="size-3.5" /> reported
+      <span className="meta inline-flex items-center gap-1 text-muted-foreground/70">
+        <Flag className="size-3.5" />
       </span>
     );
   }
@@ -79,11 +79,10 @@ export function ReportButton({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="meta inline-flex items-center gap-1 transition-colors hover:text-destructive"
+            className="rounded p-1 text-muted-foreground/70 transition-colors hover:text-destructive"
             aria-label="Report"
           >
             <Flag className="size-3.5" />
-            Report
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

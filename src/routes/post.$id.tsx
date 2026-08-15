@@ -275,7 +275,13 @@ function PostDetail() {
       ) : null}
 
       {post ? (
-        <article className="surface mt-4 p-5">
+        <article
+          className={`surface mt-4 border-l-2 p-5 ${
+            Date.now() - new Date(post.created_at).getTime() < 60 * 60 * 1000
+              ? "border-l-primary/60"
+              : "border-l-transparent"
+          }`}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <AnonAvatar />
