@@ -29,7 +29,7 @@ generated anonymous handle (`Anon#XXXX`) — never a real name.
 - Tailwind CSS + shadcn/ui components
 - [Supabase](https://supabase.com) — Postgres, Auth, Row Level Security, Realtime
 - Vite
-- Built with [Lovable](https://lovable.dev)
+
 
 ## Prerequisites
 
