@@ -105,7 +105,7 @@ function useFeedCommentPreviews(postIds: string[]) {
     queryKey: ["comment-previews", ids],
     enabled: ids.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("feed_comment_previews", {
+      const { data, error } = await (supabase.rpc as any)("feed_comment_previews", {
         _post_ids: ids,
         _limit: COMMENT_PREVIEW_COUNT,
       });
@@ -114,7 +114,7 @@ function useFeedCommentPreviews(postIds: string[]) {
       const map = new Map<string, CommentPreviewEntry>();
       for (const id of ids) map.set(id, { comments: [], total: 0 });
 
-      for (const row of data ?? []) {
+      for (const row of (data ?? []) as any[]) {
         const entry = map.get(row.post_id) ?? { comments: [], total: 0 };
         entry.total = row.total_count ?? entry.total;
         if (row.comment_id) {

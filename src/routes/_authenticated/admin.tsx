@@ -394,9 +394,9 @@ function useReportsQuery() {
   return useQuery({
     queryKey: ["admin-reports"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pending_reports");
+      const { data, error } = await (supabase.rpc as any)("pending_reports");
       if (error) throw error;
-      return (data ?? []) as ReportedItem[];
+      return (data ?? []) as any as ReportedItem[];
     },
   });
 }
@@ -413,7 +413,7 @@ function ReportsTab() {
 
   const dismiss = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("reports").update({ status: "dismissed" }).eq("id", id);
+      const { error } = await (supabase as any).from("reports").update({ status: "dismissed" }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -431,7 +431,7 @@ function ReportsTab() {
         .update({ is_deleted: true })
         .eq("id", report.target_id);
       if (contentError) throw contentError;
-      const { error: reportError } = await supabase
+      const { error: reportError } = await (supabase as any)
         .from("reports")
         .update({ status: "resolved" })
         .eq("id", report.id);
@@ -504,12 +504,12 @@ function useUsersQuery() {
   return useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("users")
+      const { data, error } = await (supabase
+        .from("users") as any)
         .select("id, anon_id, is_admin, is_banned, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as DirectoryUser[];
+      return (data ?? []) as any as DirectoryUser[];
     },
   });
 }
@@ -524,8 +524,8 @@ function UsersTab() {
 
   const toggleBan = useMutation({
     mutationFn: async (params: { id: string; nextBanned: boolean }) => {
-      const { error } = await supabase
-        .from("users")
+      const { error } = await (supabase
+        .from("users") as any)
         .update({ is_banned: params.nextBanned })
         .eq("id", params.id);
       if (error) throw error;
