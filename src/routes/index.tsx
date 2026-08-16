@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { AnonSearchBar } from "@/components/AnonSearchBar";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { ReactionButtons } from "@/components/ReactionButtons";
-import { ReportButton } from "@/components/ReportButton";
 import { TrustButton } from "@/components/TrustButton";
+import { ReportButton } from "@/components/ReportButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,32 +82,19 @@ function describePostError(error: { message?: string; code?: string } | null): s
   return "Couldn't post right now. Please try again.";
 }
 
-const FEED_PAGE_SIZE = 35;
-
-/** Keyset ("cursor") pagination — each page asks for posts older than the last
- * loaded post's created_at. Cheaper and more stable under concurrent inserts
- * than offset-based paging (no skipped/duplicated rows as new posts arrive). */
 function useFeedQuery() {
-  return useInfiniteQuery({
+  return useQuery({
     queryKey: ["posts", "feed"],
-    initialPageParam: null as string | null,
-    queryFn: async ({ pageParam }: { pageParam: string | null }) => {
-      let query = supabase
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("posts")
         .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
-        .limit(FEED_PAGE_SIZE);
-      if (pageParam) query = query.lt("created_at", pageParam);
-
-      const { data, error } = await query;
+        .limit(50);
       if (error) throw error;
       return (data ?? []) as unknown as PostRow[];
     },
-    getNextPageParam: (lastPage) =>
-      lastPage.length < FEED_PAGE_SIZE
-        ? undefined
-        : lastPage[lastPage.length - 1].created_at,
   });
 }
 
@@ -148,27 +136,6 @@ function useFeedCommentPreviews(postIds: string[]) {
   });
 }
 
-/** Returns a ref-callback: attach it to a sentinel div at the bottom of the
- * list, and `onVisible` fires once whenever that div scrolls into view. */
-function useRefCallback(onVisible: () => void) {
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const onVisibleRef = useRef(onVisible);
-  onVisibleRef.current = onVisible;
-
-  return useCallback((node: HTMLDivElement | null) => {
-    observerRef.current?.disconnect();
-    if (!node) return;
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) onVisibleRef.current();
-      },
-      { rootMargin: "400px" },
-    );
-    observerRef.current.observe(node);
-  }, []);
-}
-
 function Composer() {
   const { identity } = useAuth();
   const [content, setContent] = useState("");
@@ -195,35 +162,21 @@ function Composer() {
 
   const trimmed = content.trim();
   const remaining = MAX_POST_LENGTH - content.length;
-  const canSubmit =
-    trimmed.length > 0 &&
-    content.length <= MAX_POST_LENGTH &&
-    !createPost.isPending &&
-    !identity?.is_banned;
-
-  if (identity?.is_banned) {
-    return (
-      <div className="surface p-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Your account has been suspended. You can still read the feed, but you can't post.
-        </p>
-      </div>
-    );
-  }
+  const canSubmit = trimmed.length > 0 && content.length <= MAX_POST_LENGTH && !createPost.isPending;
 
   return (
-    <div className="surface p-3">
-      <div className="flex items-start gap-2.5">
-        <AnonAvatar className="size-8" />
+    <div className="surface p-4">
+      <div className="flex items-start gap-3">
+        <AnonAvatar />
         <div className="flex-1">
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={`Post as ${identity?.anon_id ?? "Anon#••••"}…`}
-            className="min-h-[40px] resize-none border-none bg-transparent px-0 py-1.5 text-sm shadow-none focus-visible:ring-0"
+            className="min-h-[72px] resize-none border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
             maxLength={MAX_POST_LENGTH + 20}
           />
-          <div className="mt-1.5 flex items-center justify-between">
+          <div className="mt-2 flex items-center justify-between">
             <span className={`meta ${remaining < 0 ? "text-destructive" : ""}`}>
               {remaining} characters left
             </span>
@@ -296,14 +249,8 @@ function PostCard({
     quickReply.mutate(trimmedReply);
   };
 
-  const isFresh = Date.now() - new Date(post.created_at).getTime() < 60 * 60 * 1000;
-
   return (
-    <div
-      className={`surface-interactive border-l-2 p-5 ${
-        isFresh ? "border-l-primary/60" : "border-l-transparent"
-      }`}
-    >
+    <div className="surface-interactive p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link to="/post/$id" params={{ id: post.id }}>
@@ -432,23 +379,11 @@ function PostCard({
 
 function Feed() {
   const { session, identity, loading } = useAuth();
-  const {
-    data,
-    isLoading,
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useFeedQuery();
+  const { data: posts, isLoading, isError } = useFeedQuery();
   const queryClient = useQueryClient();
 
-  const posts = data?.pages.flat() ?? [];
-  const sentinelRef = useRefCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-  });
-
-  const postIds = posts.map((p) => p.id);
-  const authorIds = posts.map((p) => p.user_id);
+  const postIds = (posts ?? []).map((p) => p.id);
+  const authorIds = (posts ?? []).map((p) => p.user_id);
 
   const { data: reactionsMap } = useReactionsQuery(postIds, identity?.id);
   const { data: myTrusts } = useMyTrustsQuery(authorIds, identity?.id);
@@ -485,8 +420,16 @@ function Feed() {
 
   return (
     <AppShell>
-      <h1 className="wordmark text-2xl text-foreground">UOL Feed</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Campus feed</h1>
       
+
+      <AnonSearchBar />
+
+      {session ? (
+        <div className="mt-6">
+          <Composer />
+        </div>
+      ) : null}
 
       {!loading && !session ? (
         <div className="surface mt-6 p-6">
@@ -506,13 +449,7 @@ function Feed() {
         </div>
       ) : null}
 
-      {session ? (
-        <div className="sticky top-14 z-30 pb-3 pt-3">
-          <Composer />
-        </div>
-      ) : null}
-
-      <div className="mt-2 space-y-3">
+      <div className="mt-6 space-y-3">
         {isLoading ? <p className="meta text-center">loading feed…</p> : null}
 
         {isError ? (
@@ -521,10 +458,13 @@ function Feed() {
 
         {!isLoading && !isError && posts?.length === 0 ? (
           <div className="surface p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No posts yet. Be the first to say something.
+            </p>
           </div>
         ) : null}
 
-        {posts.map((post) => (
+        {posts?.map((post) => (
           <PostCard
             key={post.id}
             post={post}
@@ -537,20 +477,6 @@ function Feed() {
             commentPreview={commentPreviews?.get(post.id)}
           />
         ))}
-
-        {!isLoading && !isError && posts.length > 0 ? (
-          <div ref={sentinelRef} className="flex justify-center py-4">
-            {isFetchingNextPage ? (
-              <p className="meta">loading more…</p>
-            ) : hasNextPage ? (
-              <Button size="sm" variant="secondary" onClick={() => void fetchNextPage()}>
-                Load more
-              </Button>
-            ) : (
-              <p className="meta">that's everything — feed's quiet for now</p>
-            )}
-          </div>
-        ) : null}
       </div>
     </AppShell>
   );
