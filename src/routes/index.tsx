@@ -456,13 +456,7 @@ function Feed() {
           <p className="meta text-center text-destructive">Couldn't load the feed. Try refreshing.</p>
         ) : null}
 
-        {!isLoading && !isError && posts?.length === 0 ? (
-          <div className="surface p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No posts yet. Be the first to say something.
-            </p>
-          </div>
-        ) : null}
+       
 
         {posts?.map((post) => (
           <PostCard
