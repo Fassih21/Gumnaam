@@ -15,7 +15,9 @@
   // time — these are only for anything the server bundle reads via process.env at runtime).
   "vars": {
     "SUPABASE_URL": "https://ofbemkznkyodupabmhof.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx"
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx",
+    "VITE_SUPABASE_URL": "https://ofbemkznkyodupabmhof.supabase.co",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx"
   }
 
   // Secrets — do NOT put these here. Set them via:
