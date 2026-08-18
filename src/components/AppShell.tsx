@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AnonAvatar } from "@/components/AnonAvatar";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import { Button } from "@/components/ui/button";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -21,26 +22,35 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-4">
           <Link to="/" className="flex items-center gap-2">
             <EyeOff className="size-4 text-primary" strokeWidth={2.25} />
-            <span className="wordmark text-lg text-foreground">Gumnaam</span>
+            <span className="wordmark text-lg text-foreground">gumnaam</span>
           </Link>
 
           {loading ? null : session ? (
-            <div className="flex items-center gap-1 rounded-full border border-border/60 bg-card/60 py-1 pl-1 pr-1.5">
-              {identity?.is_admin ? (
-                <Button asChild variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs">
-                  <Link to="/admin">Admin</Link>
-                </Button>
-              ) : null}
+            <div className="flex items-center gap-2">
               <Link
-                to="/me"
-                className="anon-tag flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-secondary"
+                to="/about"
+                className="rounded-full bg-secondary/70 px-3 py-1 text-xs font-medium text-foreground"
               >
-                <AnonAvatar className="size-6" />
-                <span className="hidden sm:inline">{identity?.anon_id ?? "…"}</span>
+                About Gumnaam
               </Link>
-              <Button variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs" onClick={signOut}>
-                Sign out
-              </Button>
+              <NotificationsBell userId={identity?.id} />
+              <div className="flex items-center gap-1 rounded-full border border-border/60 bg-card/60 py-1 pl-1 pr-1.5">
+                {identity?.is_admin ? (
+                  <Button asChild variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs">
+                    <Link to="/admin">Admin</Link>
+                  </Button>
+                ) : null}
+                <Link
+                  to="/me"
+                  className="anon-tag flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-secondary"
+                >
+                  <AnonAvatar className="size-6 ring-2 ring-primary/40" />
+                  <span className="hidden sm:inline">{identity?.anon_id ?? "…"}</span>
+                </Link>
+                <Button variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs" onClick={signOut}>
+                  Sign out
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
