@@ -1,7 +1,10 @@
+/* stylelint-disable-next-line at-rule-no-unknown */
 @import "tailwindcss" source(none);
+/* stylelint-disable-next-line at-rule-no-unknown */
 @source "../src";
 @import "tw-animate-css";
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -10,6 +13,7 @@
  * electric violet accent used sparingly. Mono face for anon IDs/timestamps.
  */
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -132,6 +136,7 @@
   }
 }
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @utility surface {
   background-color: var(--color-card);
   border-radius: var(--radius-xl);
@@ -142,6 +147,7 @@
     background-color 200ms ease;
 }
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @utility surface-interactive {
   background-color: var(--color-card);
   border-radius: var(--radius-xl);
@@ -161,6 +167,7 @@
   }
 }
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @utility meta {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -168,6 +175,7 @@
   color: var(--color-muted-foreground);
 }
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @utility anon-tag {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
@@ -175,6 +183,7 @@
   color: var(--color-primary);
 }
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @utility wordmark {
   font-family: var(--font-display);
   font-weight: 700;
