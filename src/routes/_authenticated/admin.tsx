@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnlineCount } from "@/hooks/useOnlineCount";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -621,6 +622,7 @@ function UsersTab() {
 function AdminDashboard() {
   const { identity, loading } = useAuth();
   const navigate = useNavigate();
+  const onlineCount = useOnlineCount();
 
   if (!loading && !identity?.is_admin) {
     void navigate({ to: "/", replace: true });
@@ -629,8 +631,16 @@ function AdminDashboard() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-      <p className="meta mt-1">Moderation tools — visible to admins only.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+          <p className="meta mt-1">Moderation tools — visible to admins only.</p>
+        </div>
+        <div className="surface flex items-center gap-2 px-3 py-2">
+          <span className="size-2 rounded-full bg-green-500" />
+          <span className="text-sm font-medium">{onlineCount} online</span>
+        </div>
+      </div>
 
       {loading || !identity?.is_admin ? (
         <p className="meta mt-6 text-center">loading…</p>
