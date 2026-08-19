@@ -1,109 +1,70 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Search, X } from "lucide-react";
+import { useState } from "react";
+import { Search as SearchIcon } from "lucide-react";
+import { AnonAvatar } from "@/components/AnonAvatar";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 
-type SearchResult = { anon_id: string };
-
-function useAnonSearchQuery(query: string) {
-  const trimmed = query.trim();
+function useAccountSearch(query: string) {
   return useQuery({
-    queryKey: ["anon-search", trimmed],
-    enabled: trimmed.length >= 2,
+    queryKey: ["account-search", query],
+    enabled: query.trim().length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
-        .select("anon_id")
-        .ilike("anon_id", `%${trimmed}%`)
-        .limit(8);
+        .select("id, anon_id, created_at")
+        .ilike("anon_id", `%${query.trim()}%`)
+        .order("anon_id")
+        .limit(20);
       if (error) throw error;
-      return (data ?? []) as SearchResult[];
+      return data as { id: string; anon_id: string; created_at: string }[];
     },
   });
 }
 
 export function AnonSearchBar() {
   const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query), 250);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const { data: results, isFetching } = useAnonSearchQuery(debounced);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const showDropdown = open && query.trim().length >= 2;
-
-  const goToProfile = (anonId: string) => {
-    setOpen(false);
-    setQuery("");
-    void navigate({ to: "/anon/$anonId", params: { anonId } });
-  };
+  const { data: results, isLoading } = useAccountSearch(query);
 
   return (
-    <div ref={containerRef} className="relative mt-4">
-      <div className="surface flex items-center gap-2 px-3 py-2">
-        <Search className="size-4 shrink-0 text-muted-foreground" />
-        <input
+    <div className="space-y-6 pb-16">
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="Search Anon#..."
-          className="h-6 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search Anon#1234…"
+          className="pl-9"
+          autoFocus
         />
-        {query ? (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setOpen(false);
-            }}
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-          >
-            <X className="size-4" />
-          </button>
-        ) : null}
       </div>
 
-      {showDropdown ? (
-        <div className="surface absolute z-10 mt-2 w-full overflow-hidden p-1">
-          {isFetching ? (
-            <p className="meta px-3 py-2">searching…</p>
-          ) : results && results.length > 0 ? (
-            results.map((r) => (
-              <button
-                key={r.anon_id}
-                type="button"
-                onClick={() => goToProfile(r.anon_id)}
-                className="anon-tag block w-full rounded px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-              >
-                {r.anon_id}
-              </button>
-            ))
-          ) : (
-            <p className="meta px-3 py-2">No matching handle found.</p>
-          )}
-        </div>
-      ) : null}
+      <div className="space-y-2">
+        {query.trim().length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Search for an anonymous account by its ID.
+          </p>
+        ) : isLoading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Searching…</p>
+        ) : results && results.length > 0 ? (
+          results.map((user) => (
+            <Link
+              key={user.id}
+              to="/anon/$anonId"
+              params={{ anonId: user.anon_id }}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-elevated"
+            >
+              <AnonAvatar className="size-9" />
+              <span className="anon-tag">{user.anon_id}</span>
+            </Link>
+          ))
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No accounts found for "{query}".
+          </p>
+        )}
+      </div>
     </div>
   );
 }

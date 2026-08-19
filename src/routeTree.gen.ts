@@ -16,6 +16,10 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
+import { Route as AuthenticatedNewPostRouteImport } from './routes/_authenticated/new-post'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as PostIdRouteImport } from './routes/post.$id'
 import { Route as AuthenticatedAnonAnonIdRouteImport } from './routes/_authenticated/anon.$anonId'
 
@@ -54,6 +58,27 @@ const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
   path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedNewPostRoute = AuthenticatedNewPostRouteImport.update({
+  id: '/_authenticated/new-post',
+  path: '/new-post',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/_authenticated/notifications',
+    path: '/notifications',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
+  id: '/_authenticated/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/_authenticated/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PostIdRoute = PostIdRouteImport.update({
   id: '/post/$id',
   path: '/post/$id',
@@ -73,6 +98,10 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/me': typeof AuthenticatedMeRoute
+  '/new-post': typeof AuthenticatedNewPostRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
+  '/search': typeof AuthenticatedSearchRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -84,6 +113,10 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/me': typeof AuthenticatedMeRoute
+  '/new-post': typeof AuthenticatedNewPostRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
+  '/search': typeof AuthenticatedSearchRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -96,6 +129,10 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
+  '/_authenticated/new-post': typeof AuthenticatedNewPostRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
+  '/_authenticated/search': typeof AuthenticatedSearchRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/post/$id': typeof PostIdRoute
   '/_authenticated/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -109,6 +146,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/me'
+    | '/new-post'
+    | '/notifications'
+    | '/search'
+    | '/settings'
     | '/post/$id'
     | '/anon/$anonId'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +161,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/me'
+    | '/new-post'
+    | '/notifications'
+    | '/search'
+    | '/settings'
     | '/post/$id'
     | '/anon/$anonId'
   id:
@@ -131,6 +176,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/admin'
     | '/_authenticated/me'
+    | '/_authenticated/new-post'
+    | '/_authenticated/notifications'
+    | '/_authenticated/search'
+    | '/_authenticated/settings'
     | '/post/$id'
     | '/_authenticated/anon/$anonId'
   fileRoutesById: FileRoutesById
@@ -143,6 +192,10 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
+  AuthenticatedNewPostRoute: typeof AuthenticatedNewPostRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
+  AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   PostIdRoute: typeof PostIdRoute
   AuthenticatedAnonAnonIdRoute: typeof AuthenticatedAnonAnonIdRoute
 }
@@ -198,6 +251,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/new-post': {
+      id: '/_authenticated/new-post'
+      path: '/new-post'
+      fullPath: '/new-post'
+      preLoaderRoute: typeof AuthenticatedNewPostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/search': {
+      id: '/_authenticated/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AuthenticatedSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/post/$id': {
       id: '/post/$id'
       path: '/post/$id'
@@ -223,6 +304,10 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
+  AuthenticatedNewPostRoute: AuthenticatedNewPostRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
+  AuthenticatedSearchRoute: AuthenticatedSearchRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   PostIdRoute: PostIdRoute,
   AuthenticatedAnonAnonIdRoute: AuthenticatedAnonAnonIdRoute,
 }

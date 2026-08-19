@@ -1,15 +1,26 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { EyeOff } from "lucide-react";
+import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft, EyeOff, Menu, Settings, User, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AnonAvatar } from "@/components/AnonAvatar";
-import { NotificationsBell } from "@/components/NotificationsBell";
+import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { identity, session, loading } = useAuth();
   const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isHome = pathname === "/";
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -19,41 +30,78 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-4">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="relative mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-4">
+          <div className="z-10 flex items-center gap-1">
+            {!isHome ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-2 h-9 w-9 rounded-full"
+                aria-label="Go back"
+                onClick={() => router.history.back()}
+              >
+                <ArrowLeft className="size-5" strokeWidth={2.25} />
+              </Button>
+            ) : null}
+
+            {loading ? null : session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-9 w-9 rounded-full ${isHome ? "-ml-2" : ""}`}
+                    aria-label="Open menu"
+                  >
+                    <Menu className="size-5" strokeWidth={2.25} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+                    <AnonAvatar className="size-6" />
+                    <span className="anon-tag">{identity?.anon_id ?? "…"}</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {identity?.is_admin ? (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">Admin</Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem asChild>
+                    <Link to="/me" className="flex items-center gap-2">
+                      <User className="size-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2">
+                      <Settings className="size-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={signOut}
+                    className="flex items-center gap-2 text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="size-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+
+          <Link
+            to="/"
+            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+          >
             <EyeOff className="size-4 text-primary" strokeWidth={2.25} />
-            <span className="wordmark text-lg text-foreground">gumnaam</span>
+            <span className="wordmark text-lg text-foreground">Gumnaam</span>
           </Link>
 
-          {loading ? null : session ? (
-            <div className="flex items-center gap-2">
-              <Link
-                to="/about"
-                className="rounded-full bg-secondary/70 px-3 py-1 text-xs font-medium text-foreground"
-              >
-                About Gumnaam
-              </Link>
-              <NotificationsBell userId={identity?.id} />
-              <div className="flex items-center gap-1 rounded-full border border-border/60 bg-card/60 py-1 pl-1 pr-1.5">
-                {identity?.is_admin ? (
-                  <Button asChild variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs">
-                    <Link to="/admin">Admin</Link>
-                  </Button>
-                ) : null}
-                <Link
-                  to="/me"
-                  className="anon-tag flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-secondary"
-                >
-                  <AnonAvatar className="size-6 ring-2 ring-primary/40" />
-                  <span className="hidden sm:inline">{identity?.anon_id ?? "…"}</span>
-                </Link>
-                <Button variant="ghost" size="sm" className="h-7 rounded-full px-2.5 text-xs" onClick={signOut}>
-                  Sign out
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
+          {!loading && !session ? (
+            <div className="z-10 flex items-center gap-2">
               <Button asChild variant="ghost" size="sm">
                 <Link to="/login">Log in</Link>
               </Button>
@@ -61,11 +109,30 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link to="/signup">Sign up</Link>
               </Button>
             </div>
+          ) : (
+            <div className="absolute right-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
+              <Link
+                to="/about"
+                className="rounded-full bg-secondary/70 px-2 py-0.5 text-[10px] font-medium leading-tight text-foreground whitespace-nowrap"
+              >
+                About Gumnaam
+              </Link>
+              <div className="w-9" aria-hidden="true" />
+            </div>
           )}
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-2xl px-4 pb-24 pt-6">{children}</main>
+
+      <BottomNav />
     </div>
   );
 }
+
+
+
+
+
+
+
