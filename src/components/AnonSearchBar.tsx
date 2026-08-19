@@ -34,7 +34,7 @@ export function AnonSearchBar() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search Anon#1234…"
+          placeholder="Search Anon#1234â€¦"
           className="pl-9"
           autoFocus
         />
@@ -46,7 +46,7 @@ export function AnonSearchBar() {
             Search for an anonymous account by its ID.
           </p>
         ) : isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Searching…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">Searchingâ€¦</p>
         ) : results && results.length > 0 ? (
           results.map((user) => (
             <Link
