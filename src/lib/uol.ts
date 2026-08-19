@@ -1,4 +1,4 @@
-export const UOL_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@student\.uol\.edu\.pk$/;
+export const UOL_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)*uol\.edu\.pk$/;
 
 export function isUolEmail(email: string) {
   return UOL_EMAIL_PATTERN.test(email.trim());
