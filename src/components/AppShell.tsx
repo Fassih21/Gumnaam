@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuContent align="start" className="w-56">
                   <DropdownMenuLabel className="flex items-center gap-2 font-normal">
                     <AnonAvatar className="size-6" />
-                    <span className="anon-tag">{identity?.anon_id ?? "…"}</span>
+                    <span className="anon-tag">{identity?.anon_id ?? "ï¿½"}</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {identity?.is_admin ? (
