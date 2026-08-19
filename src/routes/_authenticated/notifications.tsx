@@ -4,7 +4,7 @@ import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
-    meta: [{ title: "Notifications — UOL Underground" }],
+    meta: [{ title: "Notifications â€” UOL Underground" }],
   }),
   component: NotificationsPage,
 });

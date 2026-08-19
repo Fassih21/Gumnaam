@@ -5,7 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
-    meta: [{ title: "Settings — UOL Underground" }],
+    meta: [{ title: "Settings â€” UOL Underground" }],
   }),
   component: SettingsPage,
 });

@@ -4,7 +4,7 @@ import { PostComposer } from "@/components/PostComposer";
 
 export const Route = createFileRoute("/_authenticated/new-post")({
   head: () => ({
-    meta: [{ title: "New post — UOL Underground" }],
+    meta: [{ title: "New post â€” UOL Underground" }],
   }),
   component: NewPostPage,
 });

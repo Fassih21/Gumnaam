@@ -4,7 +4,7 @@ import { AnonSearchBar } from "@/components/AnonSearchBar";
 
 export const Route = createFileRoute("/_authenticated/search")({
   head: () => ({
-    meta: [{ title: "Search — UOL Underground" }],
+    meta: [{ title: "Search â€” UOL Underground" }],
   }),
   component: SearchPage,
 });
