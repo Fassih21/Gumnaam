@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { AnonSearchBar } from "@/components/AnonSearchBar";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { TrustButton } from "@/components/TrustButton";
@@ -134,64 +133,6 @@ function useFeedCommentPreviews(postIds: string[]) {
       return map;
     },
   });
-}
-
-function Composer() {
-  const { identity } = useAuth();
-  const [content, setContent] = useState("");
-  const queryClient = useQueryClient();
-
-  const createPost = useMutation({
-    mutationFn: async (text: string) => {
-      if (!identity) throw new Error("Not signed in");
-      const { error } = await supabase.from("posts").insert({
-        user_id: identity.id,
-        content: text.trim(),
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setContent("");
-      toast.success("Posted anonymously.");
-      void queryClient.invalidateQueries({ queryKey: ["posts", "feed"] });
-    },
-    onError: (error: { message?: string; code?: string }) => {
-      toast.error(describePostError(error));
-    },
-  });
-
-  const trimmed = content.trim();
-  const remaining = MAX_POST_LENGTH - content.length;
-  const canSubmit = trimmed.length > 0 && content.length <= MAX_POST_LENGTH && !createPost.isPending;
-
-  return (
-    <div className="surface p-4">
-      <div className="flex items-start gap-3">
-        <AnonAvatar />
-        <div className="flex-1">
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={`Post as ${identity?.anon_id ?? "Anon#••••"}…`}
-            className="min-h-[72px] resize-none border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
-            maxLength={MAX_POST_LENGTH + 20}
-          />
-          <div className="mt-2 flex items-center justify-between">
-            <span className={`meta ${remaining < 0 ? "text-destructive" : ""}`}>
-              {remaining} characters left
-            </span>
-            <Button
-              size="sm"
-              disabled={!canSubmit}
-              onClick={() => createPost.mutate(trimmed)}
-            >
-              {createPost.isPending ? "Posting…" : "Post"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function PostCard({
@@ -423,14 +364,8 @@ function Feed() {
       <h1 className="text-2xl font-semibold tracking-tight">Campus feed</h1>
       
 
-      <AnonSearchBar />
 
-      {session ? (
-        <div className="mt-6">
-          <Composer />
-        </div>
-      ) : null}
-
+      
       {!loading && !session ? (
         <div className="surface mt-6 p-6">
           <h2 className="text-base font-medium">You're not signed in</h2>
@@ -481,3 +416,4 @@ function Feed() {
     </AppShell>
   );
 }
+
