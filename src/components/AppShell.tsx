@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
           >
             <EyeOff className="size-4 text-primary" strokeWidth={2.25} />
-            <span className="wordmark text-lg text-foreground">Gumnaam</span>
+            <span className="wordmark text-lg text-foreground">gumnaam</span>
           </Link>
 
           {!loading && !session ? (
@@ -110,7 +110,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Button>
             </div>
           ) : (
-            <div className="z-10 w-9" aria-hidden="true" />
+            <div className="z-10 flex items-center gap-2">
+              <Link
+                to="/about"
+                className="hidden rounded-full bg-secondary/70 px-3 py-1 text-xs font-medium text-foreground sm:inline-block"
+              >
+                About Gumnaam
+              </Link>
+              <div className="w-9" aria-hidden="true" />
+            </div>
           )}
         </div>
       </header>

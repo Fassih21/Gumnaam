@@ -39,7 +39,7 @@ generated anonymous handle (`Anon#XXXX`) — never a real name.
 ## Getting started
 
 ```sh
-git clone <this-repository-url>
+git clone https://github.com/Fassih21/Gumnaam.git
 cd gumnaam
 bun install
 ```
