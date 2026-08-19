@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
@@ -37,6 +37,7 @@ export const Route = createFileRoute("/")({
 
 const MAX_POST_LENGTH = 2000;
 const COMMENT_PREVIEW_COUNT = 2;
+const PAGE_SIZE = 50;
 
 type PostRow = {
   id: string;
@@ -82,18 +83,27 @@ function describePostError(error: { message?: string; code?: string } | null): s
 }
 
 function useFeedQuery() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["posts", "feed"],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      let query = supabase
         .from("posts")
         .select("id, content, created_at, user_id, users ( anon_id )")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(PAGE_SIZE);
+
+      if (pageParam) {
+        query = query.lt("created_at", pageParam);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as PostRow[];
     },
+    getNextPageParam: (lastPage) =>
+      lastPage.length < PAGE_SIZE ? undefined : lastPage[lastPage.length - 1]?.created_at,
   });
 }
 
@@ -320,9 +330,17 @@ function PostCard({
 
 function Feed() {
   const { session, identity, loading } = useAuth();
-  const { data: posts, isLoading, isError } = useFeedQuery();
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useFeedQuery();
   const queryClient = useQueryClient();
 
+  const posts = data?.pages.flat();
   const postIds = (posts ?? []).map((p) => p.id);
   const authorIds = (posts ?? []).map((p) => p.user_id);
 
@@ -362,10 +380,7 @@ function Feed() {
   return (
     <AppShell>
       <h1 className="text-2xl font-semibold tracking-tight">Campus feed</h1>
-      
 
-
-      
       {!loading && !session ? (
         <div className="surface mt-6 p-6">
           <h2 className="text-base font-medium">You're not signed in</h2>
@@ -391,8 +406,6 @@ function Feed() {
           <p className="meta text-center text-destructive">Couldn't load the feed. Try refreshing.</p>
         ) : null}
 
-       
-
         {posts?.map((post) => (
           <PostCard
             key={post.id}
@@ -406,8 +419,20 @@ function Feed() {
             commentPreview={commentPreviews?.get(post.id)}
           />
         ))}
+
+        {hasNextPage ? (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={isFetchingNextPage}
+              onClick={() => void fetchNextPage()}
+            >
+              {isFetchingNextPage ? "Loading…" : "Load more"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );
 }
-
