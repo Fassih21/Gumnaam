@@ -17,7 +17,7 @@ const team = [
     linkedin: "https://www.linkedin.com/in/fassih-kamran-46a5122a0",
   },
   {
-    role: "Co-founder",
+    role: "Founder",
     name: "M. Anas Safdar",
     github: "https://github.com/anas6353",
     linkedin: "https://www.linkedin.com/in/anas-safdar-7892812bb",
