@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHome = pathname === "/";
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -59,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuContent align="start" className="w-56">
                   <DropdownMenuLabel className="flex items-center gap-2 font-normal">
                     <AnonAvatar className="size-6" />
-                    <span className="anon-tag">{identity?.anon_id ?? "…"}</span>
+                    <span className="anon-tag">{identity?.anon_id ?? "�"}</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {identity?.is_admin ? (
@@ -100,7 +101,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="wordmark text-lg text-foreground">Gumnaam</span>
           </Link>
 
-          {!loading && !session ? (
+          {isHome || isAuthPage || session ? (
+            <div className="absolute right-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
+              <Link
+                to="/about"
+                className="rounded-full bg-secondary/70 px-2 py-0.5 text-[10px] font-medium leading-tight text-foreground whitespace-nowrap"
+              >
+                About Gumnaam
+              </Link>
+            </div>
+          ) : null}
+
+          {!loading && !session && !isHome && !isAuthPage ? (
             <div className="z-10 flex items-center gap-2">
               <Button asChild variant="ghost" size="sm">
                 <Link to="/login">Log in</Link>
@@ -109,17 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link to="/signup">Sign up</Link>
               </Button>
             </div>
-          ) : (
-            <div className="absolute right-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
-              <Link
-                to="/about"
-                className="rounded-full bg-secondary/70 px-2 py-0.5 text-[10px] font-medium leading-tight text-foreground whitespace-nowrap"
-              >
-                About Gumnaam
-              </Link>
-              <div className="w-9" aria-hidden="true" />
-            </div>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -129,10 +131,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-
-
-
-
-
-
