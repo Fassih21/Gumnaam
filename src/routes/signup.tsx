@@ -105,7 +105,7 @@ function SignupPage() {
               placeholder="Ayesha Khan"
               autoComplete="name"
             />
-            <p className="meta">Never shown publicly — admins only.</p>
+            <p className="meta">Never shown publicly.</p>
           </div>
 
           <div className="space-y-2">
