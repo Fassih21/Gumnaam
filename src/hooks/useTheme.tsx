@@ -22,9 +22,9 @@ function applyThemeClass(theme: Theme) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
+    if (typeof window === "undefined") return "dark";
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === "dark" ? "dark" : "light";
+    return stored === "light" ? "light" : "dark";
   });
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export const themeInitScript = `
 (function() {
   try {
     var stored = window.localStorage.getItem('${STORAGE_KEY}');
-    if (stored === 'dark') {
+    if (stored !== 'light') {
       document.documentElement.classList.add('dark');
     }
   } catch (e) {}
