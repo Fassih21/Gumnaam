@@ -135,6 +135,4 @@ supabase/migrations/          # SQL schema, RLS policies, triggers
   soft-delete UI (currently placeholder cards)
 - Reports/flagging flow for posts and comments
 
-## License
 
-Private project — not currently licensed for reuse.
