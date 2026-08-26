@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Moon, Sun } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useTheme } from "@/hooks/useTheme";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { supported, enabled, subscribe, unsubscribe } = usePushSubscription();
 
   return (
     <AppShell>
@@ -54,6 +56,22 @@ function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {supported ? (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="text-sm font-medium text-foreground">Push notifications</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Get notified even when Gumnaam is closed.
+            </p>
+            <button
+              type="button"
+              onClick={() => void (enabled ? unsubscribe() : subscribe())}
+              className="mt-4 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-elevated"
+            >
+              {enabled ? "Disable" : "Enable"}
+            </button>
+          </div>
+        ) : null}
 
         <div className="rounded-xl border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">

@@ -17,7 +17,8 @@
     "SUPABASE_URL": "https://ofbemkznkyodupabmhof.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx",
     "VITE_SUPABASE_URL": "https://ofbemkznkyodupabmhof.supabase.co",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx"
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_4Blfqjvix_Z7HB12GUhmCw_ITple3Mx",
+    "VITE_VAPID_PUBLIC_KEY": "BMY-sKIdjIjqRm0hsUkhELAXJDpEF6I92DOr-Kjtti3X_eBxYxw1cc1DIyao1CuTp_QU07b0giSBcM-TDZtqGP0"
   }
 
   // Secrets — do NOT put these here. Set them via:
