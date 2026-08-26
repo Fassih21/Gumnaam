@@ -3,6 +3,7 @@ import { ArrowLeft, EyeOff, Menu, Settings, User, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotificationsOnOpen, useNotificationsRealtime } from "@/hooks/useNotifications";
 import { AnonAvatar } from "@/components/AnonAvatar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHome = pathname === "/";
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+
+  useNotificationsRealtime(identity?.id);
+  useNotificationsOnOpen(identity?.id);
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -1,9 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Home, PlusSquare, Search, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnreadCount } from "@/hooks/useNotifications";
 
 export function BottomNav() {
-  const { session } = useAuth();
+  const { session, identity } = useAuth();
+  const { data: unread } = useUnreadCount(identity?.id);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (!session) return null;
@@ -30,7 +32,12 @@ export function BottomNav() {
             isActive("/notifications") ? "text-foreground" : "text-muted-foreground"
           }`}
         >
-          <Bell className="size-6" strokeWidth={isActive("/notifications") ? 2.5 : 2} />
+          <span className="relative">
+            <Bell className="size-6" strokeWidth={isActive("/notifications") ? 2.5 : 2} />
+            {unread ? (
+              <span className="absolute -right-1 -top-1 size-2 rounded-full bg-primary" />
+            ) : null}
+          </span>
         </Link>
 
         <Link

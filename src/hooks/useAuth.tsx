@@ -50,6 +50,12 @@ export function useAuth() {
       try {
         const profile = await ensureProfile(nextSession.user);
         if (active) setIdentity(profile);
+        if (profile) {
+          void supabase
+            .from("users")
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq("id", profile.id);
+        }
       } catch {
         if (active) setIdentity(null);
       }
