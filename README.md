@@ -131,8 +131,7 @@ supabase/migrations/          # SQL schema, RLS policies, triggers
 
 ## Roadmap
 
-- Admin dashboard: blocked keyword management, report review, identity lookup,
-  soft-delete UI (currently placeholder cards)
-- Reports/flagging flow for posts and comments
+- Push Notifications 
+- Reacts List
 
 
