@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type ReactionType = "upvote" | "downvote";
 export type ReactionSummary = { upvotes: number; downvotes: number; mine: ReactionType | null };
 type ReactionRow = { target_id: string; user_id: string; type: ReactionType };
+export type Reactor = { type: ReactionType; anon_id: string };
 
 function summarize(rows: ReactionRow[], myId: string | undefined) {
   const map = new Map<string, ReactionSummary>();
@@ -29,6 +30,22 @@ export function useReactionsQuery(targetIds: string[], myId: string | undefined)
         .in("target_id", ids);
       if (error) throw error;
       return summarize((data ?? []) as ReactionRow[], myId);
+    },
+  });
+}
+
+export function useReactorsQuery(targetType: "post" | "comment", targetId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["reactors", targetType, targetId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reactions")
+        .select("type, users(anon_id)")
+        .eq("target_type", targetType)
+        .eq("target_id", targetId);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({ type: r.type, anon_id: r.users.anon_id })) as Reactor[];
     },
   });
 }
