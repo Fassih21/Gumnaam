@@ -6,7 +6,7 @@ generated anonymous handle (`Anon#XXXX`) — never a real name.
 
 ## Features
 
-- **Verified-only access** — accounts are gated to `@student.uol.edu.pk` emails,
+- **Verified-only access** — accounts are gated to `@uol.edu.pk` emails,
   enforced both client-side and with a DB-level check constraint.
 - **Anonymous by default** — real name and email are stored but never exposed
   through the API; even authenticated users can only read each other's anon
