@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
+const VAPID_PUBLIC_KEY = import.meta.env["VITE_VAPID_PUBLIC_KEY"] as string;
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -35,9 +35,16 @@ export function usePushSubscription() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     const json = sub.toJSON();
+    const endpoint = json.endpoint;
+    const keys = json.keys ?? {};
 
     await supabase.from("push_subscriptions").upsert(
-      { user_id: identity.id, endpoint: json.endpoint!, p256dh: json.keys!.p256dh, auth: json.keys!.auth },
+      {
+        user_id: identity.id,
+        endpoint: endpoint!,
+        p256dh: keys["p256dh"]!,
+        auth: keys["auth"]!,
+      },
       { onConflict: "endpoint" },
     );
     setEnabled(true);

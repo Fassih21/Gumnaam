@@ -20,6 +20,7 @@ import { Route as AuthenticatedNewPostRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as ApiSendPushRouteImport } from './routes/api/send-push'
 import { Route as PostIdRouteImport } from './routes/post.$id'
 import { Route as AuthenticatedAnonAnonIdRouteImport } from './routes/_authenticated/anon.$anonId'
 
@@ -79,6 +80,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSendPushRoute = ApiSendPushRouteImport.update({
+  id: '/api/send-push',
+  path: '/api/send-push',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PostIdRoute = PostIdRouteImport.update({
   id: '/post/$id',
   path: '/post/$id',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/send-push': typeof ApiSendPushRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/send-push': typeof ApiSendPushRoute
   '/post/$id': typeof PostIdRoute
   '/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/api/send-push': typeof ApiSendPushRoute
   '/post/$id': typeof PostIdRoute
   '/_authenticated/anon/$anonId': typeof AuthenticatedAnonAnonIdRoute
 }
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/search'
     | '/settings'
+    | '/api/send-push'
     | '/post/$id'
     | '/anon/$anonId'
   fileRoutesByTo: FileRoutesByTo
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/search'
     | '/settings'
+    | '/api/send-push'
     | '/post/$id'
     | '/anon/$anonId'
   id:
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/search'
     | '/_authenticated/settings'
+    | '/api/send-push'
     | '/post/$id'
     | '/_authenticated/anon/$anonId'
   fileRoutesById: FileRoutesById
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  ApiSendPushRoute: typeof ApiSendPushRoute
   PostIdRoute: typeof PostIdRoute
   AuthenticatedAnonAnonIdRoute: typeof AuthenticatedAnonAnonIdRoute
 }
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/send-push': {
+      id: '/api/send-push'
+      path: '/api/send-push'
+      fullPath: '/api/send-push'
+      preLoaderRoute: typeof ApiSendPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/post/$id': {
       id: '/post/$id'
       path: '/post/$id'
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  ApiSendPushRoute: ApiSendPushRoute,
   PostIdRoute: PostIdRoute,
   AuthenticatedAnonAnonIdRoute: AuthenticatedAnonAnonIdRoute,
 }

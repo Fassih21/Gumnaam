@@ -8,6 +8,7 @@ export type NotificationType =
   | "comment_on_post"
   | "reaction_on_post"
   | "reaction_on_comment"
+  | "mention"
   | "reengagement";
 
 export type NotificationRow = {
@@ -29,6 +30,8 @@ export function messageFor(n: { type: NotificationType; actor: { anon_id: string
       return `${who} reacted to your post`;
     case "reaction_on_comment":
       return `${who} reacted to your comment`;
+    case "mention":
+      return `${who} mentioned you`;
     case "reengagement":
       return "Gumnaam is waiting for you — share your thoughts";
   }
@@ -39,9 +42,12 @@ export function useNotificationsQuery(userId: string | undefined) {
     queryKey: ["notifications", userId],
     enabled: !!userId,
     queryFn: async () => {
+      if (!userId) throw new Error("Missing user id");
+
       const { data, error } = await supabase
         .from("notifications")
         .select("id, type, is_read, created_at, post_id, comment_id, actor:actor_id ( anon_id )")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -55,9 +61,12 @@ export function useUnreadCount(userId: string | undefined) {
     queryKey: ["notifications-unread-count", userId],
     enabled: !!userId,
     queryFn: async () => {
+      if (!userId) throw new Error("Missing user id");
+
       const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
         .eq("is_read", false);
       if (error) throw error;
       return count ?? 0;
@@ -124,6 +133,7 @@ export function useNotificationsOnOpen(userId: string | undefined) {
       const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
         .eq("is_read", false);
       if (error || !count) return;
 

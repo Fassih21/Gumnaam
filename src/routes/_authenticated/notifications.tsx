@@ -34,6 +34,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   comment_on_post: MessageCircle,
   reaction_on_post: Heart,
   reaction_on_comment: Heart,
+  mention: MessageCircle,
   reengagement: Sparkles,
 };
 
@@ -44,7 +45,7 @@ function NotificationRowItem({ n }: { n: NotificationRow }) {
   return (
     <Link
       to={to}
-      params={n.post_id ? { id: n.post_id } : undefined}
+      params={n.post_id ? { id: n.post_id } : {}}
       className={`surface flex items-start gap-3 p-4 transition ${
         n.is_read ? "" : "border-primary/40 bg-primary/5"
       }`}

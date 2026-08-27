@@ -5,6 +5,7 @@ import { AnonAvatar } from "@/components/AnonAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifyMentions } from "@/hooks/useMentions";
 import { supabase } from "@/integrations/supabase/client";
 
 const MAX_POST_LENGTH = 2000;
@@ -24,20 +25,32 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
   const { identity } = useAuth();
   const [content, setContent] = useState("");
   const queryClient = useQueryClient();
+  const notifyMentions = useNotifyMentions();
 
   const createPost = useMutation({
     mutationFn: async (text: string) => {
       if (!identity) throw new Error("Not signed in");
-      const { error } = await supabase.from("posts").insert({
-        user_id: identity.id,
-        content: text.trim(),
-      });
+      const trimmed = text.trim();
+      const { data, error } = await supabase
+        .from("posts")
+        .insert({ user_id: identity.id, content: trimmed })
+        .select("id")
+        .single();
       if (error) throw error;
+      return { id: data.id as string, content: trimmed };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, content: postedContent }) => {
       setContent("");
       toast.success("Posted anonymously.");
       void queryClient.invalidateQueries({ queryKey: ["posts", "feed"] });
+      if (identity) {
+        notifyMentions.mutate({
+          content: postedContent,
+          actorId: identity.id,
+          postId: id,
+          commentId: null,
+        });
+      }
       onPosted?.();
     },
     onError: (error: { message?: string; code?: string }) => {
