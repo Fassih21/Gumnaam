@@ -12,9 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifyMentions } from "@/hooks/useMentions";
 import { useReactionsQuery } from "@/hooks/useReactions";
 import { useMyTrustsQuery, useTrustCountsQuery } from "@/hooks/useTrust";
 import { supabase } from "@/integrations/supabase/client";
+import { MENTION_RE } from "@/lib/mentions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -68,6 +70,24 @@ function relativeTime(iso: string) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+/** Splits content on @Anon#1234 mentions and renders each as a link to that user's profile. */
+function renderContent(content: string) {
+  return content.split(MENTION_RE).map((part, i) =>
+    i % 2 === 1 ? (
+      <Link
+        key={i}
+        to="/anon/$anonId"
+        params={{ anonId: part }}
+        className="font-medium text-primary hover:underline"
+      >
+        @{part}
+      </Link>
+    ) : (
+      part
+    ),
+  );
 }
 
 /** Maps raw Supabase/Postgres errors to copy a student will understand. */
@@ -170,20 +190,31 @@ function PostCard({
   const [expanded, setExpanded] = useState(false);
   const [replyText, setReplyText] = useState("");
   const queryClient = useQueryClient();
+  const notifyMentions = useNotifyMentions();
 
   const quickReply = useMutation({
     mutationFn: async (text: string) => {
       if (!identity) throw new Error("Not signed in");
-      const { error } = await supabase.from("comments").insert({
-        post_id: post.id,
-        user_id: identity.id,
-        content: text.trim(),
-      });
+      const trimmed = text.trim();
+      const { data, error } = await supabase
+        .from("comments")
+        .insert({ post_id: post.id, user_id: identity.id, content: trimmed })
+        .select("id")
+        .single();
       if (error) throw error;
+      return { id: data.id as string, content: trimmed };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, content: postedContent }) => {
       setReplyText("");
       void queryClient.invalidateQueries({ queryKey: ["comment-previews"] });
+      if (identity) {
+        notifyMentions.mutate({
+          content: postedContent,
+          actorId: identity.id,
+          postId: post.id,
+          commentId: id,
+        });
+      }
     },
     onError: (error: { message?: string; code?: string }) => {
       toast.error(describePostError(error));
@@ -234,7 +265,7 @@ function PostCard({
         params={{ id: post.id }}
         className="mt-4 block whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"
       >
-        {post.content}
+        {renderContent(post.content)}
       </Link>
 
       <div className="mt-3 flex items-center gap-4">
@@ -289,7 +320,7 @@ function PostCard({
                 params={{ id: post.id }}
                 className="line-clamp-2 flex-1 text-foreground/80"
               >
-                {comment.content}
+                {renderContent(comment.content)}
               </Link>
             </div>
           ))}

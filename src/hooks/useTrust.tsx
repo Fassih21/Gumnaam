@@ -7,9 +7,12 @@ export function useMyTrustsQuery(authorIds: string[], myUserId: string | undefin
     queryKey: ["my-trusts", myUserId, ids],
     enabled: !!myUserId && ids.length > 0,
     queryFn: async () => {
+      if (!myUserId) throw new Error("Missing user id");
+
       const { data, error } = await supabase
         .from("trusts").select("trusted_id")
-        .eq("truster_id", myUserId).in("trusted_id", ids);
+        .eq("truster_id", myUserId)
+        .in("trusted_id", ids);
       if (error) throw error;
       return new Set((data ?? []).map((r) => r.trusted_id as string));
     },
