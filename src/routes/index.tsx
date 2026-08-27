@@ -8,6 +8,7 @@ import { AnonAvatar } from "@/components/AnonAvatar";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { TrustButton } from "@/components/TrustButton";
 import { ReportButton } from "@/components/ReportButton";
+import { WhatsNewBanner } from "@/components/WhatsNewBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -410,6 +411,7 @@ function Feed() {
 
   return (
     <AppShell>
+      <WhatsNewBanner />
       <h1 className="text-2xl font-semibold tracking-tight">Campus feed</h1>
 
       {!loading && !session ? (
