@@ -119,6 +119,11 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1088121245283207"
+          crossOrigin="anonymous"
+        ></script>
       </head>
       <body>
         {children}
@@ -141,5 +146,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-
-
