@@ -132,6 +132,6 @@ supabase/migrations/          # SQL schema, RLS policies, triggers
 ## Roadmap
 
 - Push Notifications 
-- Reacts List
+- Nested Comments
 
 
