@@ -133,5 +133,5 @@ supabase/migrations/          # SQL schema, RLS policies, triggers
 
 - Push Notifications 
 - Nested Comments
-
+- Block System
 
